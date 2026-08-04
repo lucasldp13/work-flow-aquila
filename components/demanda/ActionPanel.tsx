@@ -355,7 +355,8 @@ function MinutaEnvioPanel({ data, onChanged }: { data: DemandDetailPayload; onCh
         )}
         <PropostaLink data={data} />
         <p className="text-sm text-slate-600">
-          Anexe a minuta na aba <strong>Documentos</strong> (tipo &quot;Minuta contratual&quot;) e confirme o e-mail do responsável pela assinatura para liberar o envio.
+          Anexe a minuta na aba <strong>Documentos</strong> (tipo &quot;Minuta contratual&quot;) e confirme o e-mail do responsável pela assinatura para liberar o envio. Ao registrar,
+          o sistema envia automaticamente um e-mail a esse endereço com o link para baixar a minuta.
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="E-mail do responsável pela assinatura" value={data.demand.signatario_email ?? ""} disabled />

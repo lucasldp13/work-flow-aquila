@@ -80,6 +80,73 @@ export function buildJuridicoNotificationHtml(data: JuridicoNotificationData): s
 </html>`;
 }
 
+export interface MinutaClienteData {
+  cliente: string;
+  demanda: string;
+  linkMinuta: string;
+  validoAte: string;
+}
+
+export function buildMinutaClienteSubject(cliente: string): string {
+  return `Minuta contratual para assinatura — ${cliente}`;
+}
+
+// E-mail enviado ao responsável pela assinatura (contato do cliente) com
+// o link para baixar a minuta. Diferente da notificação interna ao
+// Jurídico, aqui o link aponta diretamente para o documento (o
+// destinatário é externo e não tem login no sistema) — uma URL assinada
+// de validade limitada, nunca um anexo direto no e-mail.
+export function buildMinutaClienteHtml(data: MinutaClienteData): string {
+  return `<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(buildMinutaClienteSubject(data.cliente))}</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
+            <tr>
+              <td style="background:#1e3a8a;padding:20px 28px;">
+                <span style="color:#ffffff;font-size:16px;font-weight:700;letter-spacing:0.02em;">Aquila Consultoria</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 28px 8px 28px;">
+                <h1 style="margin:0 0 16px 0;font-size:19px;color:#0f172a;">Minuta contratual para assinatura</h1>
+                <p style="margin:0 0 16px 0;font-size:14px;color:#334155;line-height:1.6;">
+                  Olá, encaminhamos a minuta contratual referente a <strong>${escapeHtml(data.demanda)}</strong>,
+                  de <strong>${escapeHtml(data.cliente)}</strong>, para análise e assinatura.
+                </p>
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="border-radius:8px;background:#2563eb;">
+                      <a href="${data.linkMinuta}" style="display:inline-block;padding:12px 24px;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;">Baixar minuta contratual</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:20px 0 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
+                  Este link é válido até ${escapeHtml(data.validoAte)}. Após assinar, devolva o documento assinado
+                  ao seu contato na Aquila para darmos sequência ao projeto.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;">
+                <p style="margin:0;font-size:11px;color:#94a3b8;">Esta é uma mensagem automática da Aquila Consultoria. Em caso de dúvidas, entre em contato com o responsável comercial ou jurídico do seu projeto.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")

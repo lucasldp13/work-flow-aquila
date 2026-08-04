@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getEmailTransport, getEmailFrom } from "./transport";
-import { buildJuridicoNotificationHtml, buildJuridicoNotificationSubject } from "./templates";
+import { buildJuridicoNotificationHtml, buildJuridicoNotificationSubject, buildMinutaClienteHtml, buildMinutaClienteSubject } from "./templates";
 
 export const MAX_EMAIL_ATTEMPTS = 3;
 const INLINE_RETRY_DELAYS_MS = [1500, 4000];
@@ -12,7 +12,12 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export interface NotifyJuridicoParams {
+export type NotifyResult =
+  | { skipped: true; reason: "ja_enviado" | "sem_destinatarios" }
+  | { skipped: false; enviado: true }
+  | { skipped: false; enviado: false; erro: string };
+
+interface TrackedEmailParams {
   demandId: string;
   /**
    * Chave de deduplicação: identifica de forma única a ação que disparou o
@@ -21,25 +26,21 @@ export interface NotifyJuridicoParams {
    * notificações são enviadas para a mesma ação.
    */
   actionKey: string;
-  cliente: string;
-  demanda: string;
-  usuarioComercial: string;
-  tipoAtualizacao: string;
-  prazoJuridico?: string | null;
-  link: string;
+  destinatarios: string[];
+  assunto: string;
+  html: string;
   createdBy?: string | null;
+  /** Mensagem registrada como notificação interna caso todas as tentativas falhem. */
+  mensagemFalhaInterna: (erro: string) => string;
+  link: string;
+  semDestinatariosErro?: string;
 }
 
-export type NotifyResult =
-  | { skipped: true; reason: "ja_enviado" | "sem_destinatarios" }
-  | { skipped: false; enviado: true }
-  | { skipped: false; enviado: false; erro: string };
-
-// Envia (com deduplicação e novas tentativas) a notificação automática ao
-// Jurídico sempre que o Comercial cadastra/atualiza/anexa/encaminha uma
-// demanda. Roda inteiramente no backend, após a ação do Comercial ter sido
-// concluída com sucesso no banco.
-export async function notifyJuridico(params: NotifyJuridicoParams): Promise<NotifyResult> {
+// Núcleo compartilhado de envio rastreado: deduplicação por
+// (demand_id, action_key), registro em email_notifications e até
+// MAX_EMAIL_ATTEMPTS novas tentativas com pequeno backoff antes de avisar
+// internamente quem precisa saber que o envio falhou.
+async function sendTrackedEmail(params: TrackedEmailParams): Promise<NotifyResult> {
   const supabase = createAdminSupabaseClient();
 
   const { data: existing } = await supabase
@@ -53,6 +54,105 @@ export async function notifyJuridico(params: NotifyJuridicoParams): Promise<Noti
     return { skipped: true, reason: "ja_enviado" };
   }
 
+  if (params.destinatarios.length === 0) {
+    await upsertEmailLog(supabase, params, {
+      status: "falhou",
+      tentativas: (existing?.tentativas ?? 0) + 1,
+      ultimoErro: params.semDestinatariosErro ?? "Nenhum destinatário configurado.",
+    });
+    return { skipped: true, reason: "sem_destinatarios" };
+  }
+
+  const logId = await upsertEmailLog(supabase, params, {
+    status: "pendente",
+    tentativas: existing?.tentativas ?? 0,
+  });
+
+  let ultimoErro = "";
+  for (let tentativa = 1; tentativa <= MAX_EMAIL_ATTEMPTS; tentativa++) {
+    try {
+      const transport = getEmailTransport();
+      await transport.sendMail({
+        from: getEmailFrom(),
+        to: params.destinatarios,
+        subject: params.assunto,
+        html: params.html,
+      });
+
+      await supabase
+        .from("email_notifications")
+        .update({ status: "enviado", tentativas: tentativa, enviado_em: new Date().toISOString(), ultimo_erro: null })
+        .eq("id", logId);
+
+      return { skipped: false, enviado: true };
+    } catch (error) {
+      ultimoErro = error instanceof Error ? error.message : "Erro desconhecido ao enviar e-mail.";
+      await supabase.from("email_notifications").update({ status: "falhou", tentativas: tentativa, ultimo_erro: ultimoErro }).eq("id", logId);
+
+      if (tentativa < MAX_EMAIL_ATTEMPTS) {
+        await sleep(INLINE_RETRY_DELAYS_MS[tentativa - 1] ?? 4000);
+      }
+    }
+  }
+
+  if (params.createdBy) {
+    await supabase.from("notifications").insert({
+      user_id: params.createdBy,
+      demand_id: params.demandId,
+      mensagem: params.mensagemFalhaInterna(ultimoErro),
+      link: params.link,
+    });
+  }
+
+  return { skipped: false, enviado: false, erro: ultimoErro };
+}
+
+async function upsertEmailLog(
+  supabase: ReturnType<typeof createAdminSupabaseClient>,
+  params: TrackedEmailParams,
+  extra: { status: "pendente" | "falhou"; tentativas: number; ultimoErro?: string }
+) {
+  const { data, error } = await supabase
+    .from("email_notifications")
+    .upsert(
+      {
+        demand_id: params.demandId,
+        action_key: params.actionKey,
+        destinatarios: params.destinatarios,
+        assunto: params.assunto,
+        corpo_html: params.html,
+        status: extra.status,
+        tentativas: extra.tentativas,
+        ultimo_erro: extra.ultimoErro ?? null,
+        created_by: params.createdBy ?? null,
+      },
+      { onConflict: "demand_id,action_key" }
+    )
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return data.id as string;
+}
+
+export interface NotifyJuridicoParams {
+  demandId: string;
+  actionKey: string;
+  cliente: string;
+  demanda: string;
+  usuarioComercial: string;
+  tipoAtualizacao: string;
+  prazoJuridico?: string | null;
+  link: string;
+  createdBy?: string | null;
+}
+
+// Envia (com deduplicação e novas tentativas) a notificação automática ao
+// Jurídico sempre que o Comercial cadastra/atualiza/anexa/encaminha uma
+// demanda. Roda inteiramente no backend, após a ação do Comercial ter sido
+// concluída com sucesso no banco.
+export async function notifyJuridico(params: NotifyJuridicoParams): Promise<NotifyResult> {
+  const supabase = createAdminSupabaseClient();
   const { data: settingsRow } = await supabase
     .from("app_settings")
     .select("valor")
@@ -73,97 +173,53 @@ export async function notifyJuridico(params: NotifyJuridicoParams): Promise<Noti
     link: params.link,
   });
 
-  if (destinatarios.length === 0) {
-    await upsertEmailLog(supabase, params, {
-      destinatarios: [],
-      assunto,
-      html,
-      status: "falhou",
-      tentativas: (existing?.tentativas ?? 0) + 1,
-      ultimoErro: "Nenhum destinatário do Jurídico configurado no painel administrativo.",
-    });
-    return { skipped: true, reason: "sem_destinatarios" };
-  }
-
-  const logId = await upsertEmailLog(supabase, params, {
+  return sendTrackedEmail({
+    demandId: params.demandId,
+    actionKey: params.actionKey,
     destinatarios,
     assunto,
     html,
-    status: "pendente",
-    tentativas: existing?.tentativas ?? 0,
+    createdBy: params.createdBy,
+    link: params.link,
+    semDestinatariosErro: "Nenhum destinatário do Jurídico configurado no painel administrativo.",
+    mensagemFalhaInterna: (erro) => `Falha ao enviar e-mail de notificação ao Jurídico sobre "${params.demanda}": ${erro}`,
+  });
+}
+
+export interface NotifySignatarioParams {
+  demandId: string;
+  actionKey: string;
+  cliente: string;
+  demanda: string;
+  signatarioEmail: string;
+  linkMinuta: string;
+  validoAte: string;
+  /** Usuário do Jurídico avisado internamente caso o envio falhe. */
+  createdBy?: string | null;
+  linkSistema: string;
+}
+
+// Envia ao responsável pela assinatura (contato do cliente) o link para
+// baixar a minuta, assim que o Jurídico registra o envio no sistema. Usa
+// o mesmo mecanismo de deduplicação/retry/log das demais notificações.
+export async function notifySignatario(params: NotifySignatarioParams): Promise<NotifyResult> {
+  const assunto = buildMinutaClienteSubject(params.cliente);
+  const html = buildMinutaClienteHtml({
+    cliente: params.cliente,
+    demanda: params.demanda,
+    linkMinuta: params.linkMinuta,
+    validoAte: params.validoAte,
   });
 
-  let ultimoErro = "";
-  for (let tentativa = 1; tentativa <= MAX_EMAIL_ATTEMPTS; tentativa++) {
-    try {
-      const transport = getEmailTransport();
-      await transport.sendMail({
-        from: getEmailFrom(),
-        to: destinatarios,
-        subject: assunto,
-        html,
-      });
-
-      await supabase
-        .from("email_notifications")
-        .update({ status: "enviado", tentativas: tentativa, enviado_em: new Date().toISOString(), ultimo_erro: null })
-        .eq("id", logId);
-
-      return { skipped: false, enviado: true };
-    } catch (error) {
-      ultimoErro = error instanceof Error ? error.message : "Erro desconhecido ao enviar e-mail.";
-      await supabase.from("email_notifications").update({ status: "falhou", tentativas: tentativa, ultimo_erro: ultimoErro }).eq("id", logId);
-
-      if (tentativa < MAX_EMAIL_ATTEMPTS) {
-        await sleep(INLINE_RETRY_DELAYS_MS[tentativa - 1] ?? 4000);
-      }
-    }
-  }
-
-  await notifyComercialDeFalha(supabase, params, ultimoErro);
-
-  return { skipped: false, enviado: false, erro: ultimoErro };
-}
-
-async function upsertEmailLog(
-  supabase: ReturnType<typeof createAdminSupabaseClient>,
-  params: NotifyJuridicoParams,
-  extra: { destinatarios: string[]; assunto: string; html: string; status: "pendente" | "falhou"; tentativas: number; ultimoErro?: string }
-) {
-  const { data, error } = await supabase
-    .from("email_notifications")
-    .upsert(
-      {
-        demand_id: params.demandId,
-        action_key: params.actionKey,
-        destinatarios: extra.destinatarios,
-        assunto: extra.assunto,
-        corpo_html: extra.html,
-        status: extra.status,
-        tentativas: extra.tentativas,
-        ultimo_erro: extra.ultimoErro ?? null,
-        created_by: params.createdBy ?? null,
-      },
-      { onConflict: "demand_id,action_key" }
-    )
-    .select("id")
-    .single();
-
-  if (error) throw error;
-  return data.id as string;
-}
-
-async function notifyComercialDeFalha(
-  supabase: ReturnType<typeof createAdminSupabaseClient>,
-  params: NotifyJuridicoParams,
-  erro: string
-) {
-  if (!params.createdBy) return;
-  await supabase.from("notifications").insert({
-    user_id: params.createdBy,
-    demand_id: params.demandId,
-    mensagem: `Falha ao enviar e-mail de notificação ao Jurídico sobre "${params.demanda}": ${erro}`,
-    link: params.link,
+  return sendTrackedEmail({
+    demandId: params.demandId,
+    actionKey: params.actionKey,
+    destinatarios: [params.signatarioEmail],
+    assunto,
+    html,
+    createdBy: params.createdBy,
+    link: params.linkSistema,
+    mensagemFalhaInterna: (erro) => `Falha ao enviar a minuta por e-mail para ${params.signatarioEmail} ("${params.demanda}"): ${erro}`,
   });
 }
 

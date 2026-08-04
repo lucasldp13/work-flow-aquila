@@ -107,7 +107,7 @@ vi.mock("@/lib/email/transport", () => ({
   getEmailFrom: () => "Workflow Aquila <nao-responda@aquila.com.br>",
 }));
 
-const { notifyJuridico, MAX_EMAIL_ATTEMPTS } = await import("@/lib/email/notify");
+const { notifyJuridico, notifySignatario, MAX_EMAIL_ATTEMPTS } = await import("@/lib/email/notify");
 
 describe("notificação automática ao Jurídico", () => {
   beforeEach(() => {
@@ -188,4 +188,62 @@ describe("notificação automática ao Jurídico", () => {
     const row = fakeSupabase._emailNotifications.get("demand-1:cadastro:demand-1");
     expect(row?.status).toBe("falhou");
   });
+});
+
+describe("notificação da minuta ao responsável pela assinatura", () => {
+  beforeEach(() => {
+    sendMailMock.mockReset();
+    fakeSupabase._emailNotifications.clear();
+    fakeSupabase._notifications.length = 0;
+  });
+
+  const baseParams = {
+    demandId: "demand-2",
+    actionKey: "minuta-cliente:demand-2",
+    cliente: "Cliente Teste",
+    demanda: "Demanda Teste",
+    signatarioEmail: "responsavel@clienteteste.com.br",
+    linkMinuta: "https://storage.exemplo.com/minuta-assinada.pdf?token=abc",
+    validoAte: "10/08/2026",
+    linkSistema: "https://app.exemplo.com/demandas/demand-2",
+    createdBy: "juridico-1",
+  };
+
+  it("envia o e-mail ao responsável pela assinatura e registra como 'enviado'", async () => {
+    sendMailMock.mockResolvedValueOnce({});
+    const result = await notifySignatario(baseParams);
+
+    expect(result).toEqual({ skipped: false, enviado: true });
+    expect(sendMailMock).toHaveBeenCalledTimes(1);
+    expect(sendMailMock.mock.calls[0][0].to).toEqual(["responsavel@clienteteste.com.br"]);
+
+    const row = fakeSupabase._emailNotifications.get("demand-2:minuta-cliente:demand-2");
+    expect(row?.status).toBe("enviado");
+  });
+
+  it("não envia duas vezes para a mesma demanda (deduplicação)", async () => {
+    sendMailMock.mockResolvedValue({});
+
+    await notifySignatario(baseParams);
+    const result = await notifySignatario(baseParams);
+
+    expect(sendMailMock).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ skipped: true, reason: "ja_enviado" });
+  });
+
+  it("tenta reenviar após falha e avisa internamente o Jurídico responsável", async () => {
+    sendMailMock.mockRejectedValue(new Error("Falha simulada de SMTP"));
+
+    const result = await notifySignatario(baseParams);
+
+    expect(sendMailMock).toHaveBeenCalledTimes(MAX_EMAIL_ATTEMPTS);
+    expect(result.skipped).toBe(false);
+    if (!result.skipped) {
+      expect(result.enviado).toBe(false);
+    }
+
+    const row = fakeSupabase._emailNotifications.get("demand-2:minuta-cliente:demand-2");
+    expect(row?.status).toBe("falhou");
+    expect(fakeSupabase._notifications).toHaveLength(1);
+  }, 15000);
 });
