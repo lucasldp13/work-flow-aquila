@@ -3,12 +3,19 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/demanda/StatusBadge";
 import { DemandFilters } from "@/components/demanda/DemandFilters";
+import { DemandRowDelete } from "@/components/demanda/DemandRowDelete";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { isPrazoVencido } from "@/lib/workflow/validations";
 import type { DemandStatus } from "@/types/database";
 
 export default async function DemandasListPage({ searchParams }: { searchParams: { q?: string; status?: string } }) {
   const supabase = createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user!.id).single();
+  const isAdmin = profile?.role === "admin";
 
   let query = supabase
     .from("demands")
@@ -42,6 +49,7 @@ export default async function DemandasListPage({ searchParams }: { searchParams:
                 <th className="px-5 py-3">Status</th>
                 <th className="px-5 py-3">Prazo jurídico</th>
                 <th className="px-5 py-3">Atualizado em</th>
+                {isAdmin && <th className="px-5 py-3 text-right">Ações</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -68,11 +76,16 @@ export default async function DemandasListPage({ searchParams }: { searchParams:
                     )}
                   </td>
                   <td className="px-5 py-3 text-slate-500">{formatDate(d.updated_at)}</td>
+                  {isAdmin && (
+                    <td className="px-5 py-3 text-right">
+                      <DemandRowDelete demandId={d.id} demandName={d.nome_demanda} />
+                    </td>
+                  )}
                 </tr>
               ))}
               {(demands ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-slate-400">
+                  <td colSpan={isAdmin ? 7 : 6} className="px-5 py-10 text-center text-slate-400">
                     Nenhuma demanda encontrada.
                   </td>
                 </tr>

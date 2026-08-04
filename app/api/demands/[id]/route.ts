@@ -4,6 +4,7 @@ import { requireProfile, requireRole, handleApiError, appUrl } from "@/lib/api/h
 import { notifyJuridico } from "@/lib/email/notify";
 import { canEditDemandAtStatus } from "@/lib/workflow/permissions";
 import { canViewPayments } from "@/lib/workflow/permissions";
+import { deleteDemandFiles } from "@/lib/storage/cleanup";
 
 const contatoSchema = z.object({
   nome: z.string().min(1),
@@ -112,6 +113,32 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message ?? "Dados inválidos." }, { status: 400 });
     }
+    return handleApiError(error);
+  }
+}
+
+// Exclusão definitiva de uma demanda — restrita ao Administrador (acesso
+// total, conforme os perfis do sistema). Remove primeiro os documentos no
+// Storage e, em seguida, a linha da demanda; as tabelas filhas (comentários,
+// histórico, equipe, pagamentos, etc.) são removidas em cascata pelo banco.
+export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { supabase, profile } = await requireProfile();
+    requireRole(profile, ["admin"]);
+
+    const { data: demand, error: findError } = await supabase.from("demands").select("id, nome_demanda").eq("id", params.id).maybeSingle();
+    if (findError) throw findError;
+    if (!demand) {
+      return NextResponse.json({ error: "Demanda não encontrada." }, { status: 404 });
+    }
+
+    await deleteDemandFiles(params.id);
+
+    const { error: deleteError } = await supabase.from("demands").delete().eq("id", params.id);
+    if (deleteError) throw deleteError;
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
     return handleApiError(error);
   }
 }

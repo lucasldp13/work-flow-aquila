@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -9,9 +10,11 @@ import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { canEditDemandAtStatus } from "@/lib/workflow/permissions";
 import { apiRequest } from "@/lib/api/fetcher";
 import { ActionPanel } from "../ActionPanel";
+import { DeleteDemandButton } from "../DeleteDemandButton";
 import type { DemandDetailPayload, SessionInfo } from "../types";
 
 export function GeralTab({ data, session, onChanged }: { data: DemandDetailPayload; session: SessionInfo; onChanged: () => Promise<void> }) {
+  const router = useRouter();
   const { demand } = data;
   const podeEditar = canEditDemandAtStatus(session.role, demand.status) && session.role !== "admin";
   const [editing, setEditing] = useState(false);
@@ -78,6 +81,20 @@ export function GeralTab({ data, session, onChanged }: { data: DemandDetailPaylo
             </p>
           </CardContent>
         </Card>
+
+        {session.role === "admin" && (
+          <Card className="border-rose-200">
+            <CardHeader>
+              <CardTitle className="text-rose-700">Zona de risco</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="text-xs text-slate-500">
+                Exclui a demanda, todo o histórico, documentos, comentários, equipe e pagamentos associados. Esta ação não pode ser desfeita.
+              </p>
+              <DeleteDemandButton demandId={demand.id} demandName={demand.nome_demanda} onDeleted={() => router.push("/demandas")} />
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
