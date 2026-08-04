@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Input, Select } from "@/components/ui/Input";
+import { Input, Select, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
@@ -15,6 +15,7 @@ import type { EmailStatus } from "@/types/database";
 interface Settings {
   juridico_destinatarios?: { emails: string[] };
   prazo_juridico?: { dias: number; tipo: "uteis" | "corridos" };
+  minuta_confirmacao_interna?: { emails: string[]; texto: string };
 }
 
 interface EmailLogItem {
@@ -40,6 +41,8 @@ export function SettingsAdmin() {
   const [emailInput, setEmailInput] = useState("");
   const [prazoDias, setPrazoDias] = useState(4);
   const [prazoTipo, setPrazoTipo] = useState<"uteis" | "corridos">("uteis");
+  const [minutaEmailInput, setMinutaEmailInput] = useState("");
+  const [minutaTexto, setMinutaTexto] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -51,6 +54,7 @@ export function SettingsAdmin() {
       setSettings(result.data.settings);
       setPrazoDias(result.data.settings.prazo_juridico?.dias ?? 4);
       setPrazoTipo(result.data.settings.prazo_juridico?.tipo ?? "uteis");
+      setMinutaTexto(result.data.settings.minuta_confirmacao_interna?.texto ?? "");
     }
   }
 
@@ -65,6 +69,7 @@ export function SettingsAdmin() {
   }, []);
 
   const destinatarios = settings.juridico_destinatarios?.emails ?? [];
+  const minutaDestinatarios = settings.minuta_confirmacao_interna?.emails ?? [];
 
   async function addEmail() {
     if (!isValidEmail(emailInput)) {
@@ -93,6 +98,49 @@ export function SettingsAdmin() {
       return;
     }
     setSuccess("Destinatários atualizados.");
+    await loadSettings();
+  }
+
+  async function addMinutaEmail() {
+    if (!isValidEmail(minutaEmailInput)) {
+      setError("Informe um e-mail válido.");
+      return;
+    }
+    if (minutaDestinatarios.includes(minutaEmailInput)) {
+      setError("Este e-mail já está na lista.");
+      return;
+    }
+    setError(null);
+    await saveMinutaDestinatarios([...minutaDestinatarios, minutaEmailInput]);
+    setMinutaEmailInput("");
+  }
+
+  async function removeMinutaEmail(email: string) {
+    await saveMinutaDestinatarios(minutaDestinatarios.filter((e) => e !== email));
+  }
+
+  async function saveMinutaDestinatarios(emails: string[]) {
+    setLoading(true);
+    const result = await apiRequest("/api/admin/settings", { method: "PUT", body: JSON.stringify({ minutaConfirmacaoEmails: emails }) });
+    setLoading(false);
+    if (!result.ok) {
+      setError(result.error ?? "Erro ao salvar.");
+      return;
+    }
+    setSuccess("Destinatários atualizados.");
+    await loadSettings();
+  }
+
+  async function saveMinutaTexto() {
+    setLoading(true);
+    setError(null);
+    const result = await apiRequest("/api/admin/settings", { method: "PUT", body: JSON.stringify({ minutaConfirmacaoTexto: minutaTexto }) });
+    setLoading(false);
+    if (!result.ok) {
+      setError(result.error ?? "Erro ao salvar o texto.");
+      return;
+    }
+    setSuccess("Texto do e-mail interno atualizado.");
     await loadSettings();
   }
 
@@ -163,6 +211,51 @@ export function SettingsAdmin() {
           <Button onClick={savePrazo} loading={loading}>
             Salvar prazo
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Confirmação interna de envio da minuta</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-slate-600">
+            O envio da minuta ao cliente é feito manualmente pelo Jurídico (fora do sistema). Quando ele registra esse envio em &quot;Registrar envio da minuta&quot;, o sistema
+            avisa automaticamente os destinatários abaixo, com o texto que você definir.
+          </p>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Destinatários internos</label>
+            <div className="mb-2 flex flex-wrap gap-2">
+              {minutaDestinatarios.map((email) => (
+                <Badge key={email} className="gap-1.5 border-brand-200 bg-brand-50 text-brand-800">
+                  {email}
+                  <button onClick={() => removeMinutaEmail(email)} aria-label="Remover">
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+              {minutaDestinatarios.length === 0 && <p className="text-xs text-slate-400">Nenhum destinatário configurado.</p>}
+            </div>
+            <div className="flex gap-2">
+              <Input placeholder="email@aquila.com.br" value={minutaEmailInput} onChange={(e) => setMinutaEmailInput(e.target.value)} />
+              <Button onClick={addMinutaEmail} loading={loading}>
+                <Plus className="h-4 w-4" /> Adicionar
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <Textarea
+              label="Texto do e-mail"
+              value={minutaTexto}
+              onChange={(e) => setMinutaTexto(e.target.value)}
+              placeholder="Ex.: A minuta contratual foi registrada como enviada ao cliente. Acompanhe o andamento da assinatura pelo sistema."
+            />
+            <Button className="mt-2" onClick={saveMinutaTexto} loading={loading}>
+              Salvar texto
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

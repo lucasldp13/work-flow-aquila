@@ -6,6 +6,8 @@ const schema = z.object({
   juridicoDestinatarios: z.array(z.string().email()).optional(),
   prazoDias: z.number().int().positive().optional(),
   prazoTipo: z.enum(["uteis", "corridos"]).optional(),
+  minutaConfirmacaoEmails: z.array(z.string().email()).optional(),
+  minutaConfirmacaoTexto: z.string().optional(),
 });
 
 export async function GET() {
@@ -42,6 +44,23 @@ export async function PUT(request: NextRequest) {
         {
           chave: "prazo_juridico",
           valor: { dias: body.prazoDias ?? currentValor.dias ?? 4, tipo: body.prazoTipo ?? currentValor.tipo ?? "uteis" },
+          updated_by: profile.id,
+        },
+        { onConflict: "chave" }
+      );
+      if (error) throw error;
+    }
+
+    if (body.minutaConfirmacaoEmails !== undefined || body.minutaConfirmacaoTexto !== undefined) {
+      const { data: current } = await supabase.from("app_settings").select("valor").eq("chave", "minuta_confirmacao_interna").maybeSingle();
+      const currentValor = (current?.valor as { emails?: string[]; texto?: string } | null) ?? {};
+      const { error } = await supabase.from("app_settings").upsert(
+        {
+          chave: "minuta_confirmacao_interna",
+          valor: {
+            emails: body.minutaConfirmacaoEmails ?? currentValor.emails ?? [],
+            texto: body.minutaConfirmacaoTexto ?? currentValor.texto ?? "",
+          },
           updated_by: profile.id,
         },
         { onConflict: "chave" }

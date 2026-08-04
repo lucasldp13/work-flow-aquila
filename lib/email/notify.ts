@@ -3,7 +3,12 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getEmailTransport, getEmailFrom } from "./transport";
-import { buildJuridicoNotificationHtml, buildJuridicoNotificationSubject, buildMinutaClienteHtml, buildMinutaClienteSubject } from "./templates";
+import {
+  buildJuridicoNotificationHtml,
+  buildJuridicoNotificationSubject,
+  buildMinutaConfirmacaoInternaHtml,
+  buildMinutaConfirmacaoInternaSubject,
+} from "./templates";
 
 export const MAX_EMAIL_ATTEMPTS = 3;
 const INLINE_RETRY_DELAYS_MS = [1500, 4000];
@@ -186,40 +191,55 @@ export async function notifyJuridico(params: NotifyJuridicoParams): Promise<Noti
   });
 }
 
-export interface NotifySignatarioParams {
+export interface NotifyMinutaConfirmacaoParams {
   demandId: string;
   actionKey: string;
   cliente: string;
   demanda: string;
-  signatarioEmail: string;
-  linkMinuta: string;
-  validoAte: string;
-  /** Usuário do Jurídico avisado internamente caso o envio falhe. */
+  destinatarioCliente: string;
+  usuarioJuridico: string;
+  link: string;
   createdBy?: string | null;
-  linkSistema: string;
 }
 
-// Envia ao responsável pela assinatura (contato do cliente) o link para
-// baixar a minuta, assim que o Jurídico registra o envio no sistema. Usa
-// o mesmo mecanismo de deduplicação/retry/log das demais notificações.
-export async function notifySignatario(params: NotifySignatarioParams): Promise<NotifyResult> {
-  const assunto = buildMinutaClienteSubject(params.cliente);
-  const html = buildMinutaClienteHtml({
+// Confirmação interna (equipe Aquila) de que o Jurídico registrou o envio
+// da minuta ao cliente — o envio ao cliente em si continua manual, fora
+// do sistema. Destinatários e o texto da mensagem são configuráveis pelo
+// administrador (chave "minuta_confirmacao_interna" em app_settings).
+export async function notifyMinutaConfirmacaoInterna(params: NotifyMinutaConfirmacaoParams): Promise<NotifyResult> {
+  const supabase = createAdminSupabaseClient();
+  const { data: settingsRow } = await supabase
+    .from("app_settings")
+    .select("valor")
+    .eq("chave", "minuta_confirmacao_interna")
+    .maybeSingle();
+
+  const configuracao = settingsRow?.valor as { emails?: string[]; texto?: string } | null;
+  const destinatarios = (configuracao?.emails ?? []).filter(Boolean);
+  const texto = configuracao?.texto?.trim() || "A minuta contratual foi registrada como enviada ao cliente.";
+
+  const assunto = buildMinutaConfirmacaoInternaSubject(params.cliente);
+  const dataHora = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+  const html = buildMinutaConfirmacaoInternaHtml({
     cliente: params.cliente,
     demanda: params.demanda,
-    linkMinuta: params.linkMinuta,
-    validoAte: params.validoAte,
+    destinatarioCliente: params.destinatarioCliente,
+    usuarioJuridico: params.usuarioJuridico,
+    dataHora,
+    texto,
+    link: params.link,
   });
 
   return sendTrackedEmail({
     demandId: params.demandId,
     actionKey: params.actionKey,
-    destinatarios: [params.signatarioEmail],
+    destinatarios,
     assunto,
     html,
     createdBy: params.createdBy,
-    link: params.linkSistema,
-    mensagemFalhaInterna: (erro) => `Falha ao enviar a minuta por e-mail para ${params.signatarioEmail} ("${params.demanda}"): ${erro}`,
+    link: params.link,
+    semDestinatariosErro: "Nenhum destinatário da confirmação interna de envio da minuta configurado no painel administrativo.",
+    mensagemFalhaInterna: (erro) => `Falha ao enviar a confirmação interna de envio da minuta sobre "${params.demanda}": ${erro}`,
   });
 }
 

@@ -80,29 +80,37 @@ export function buildJuridicoNotificationHtml(data: JuridicoNotificationData): s
 </html>`;
 }
 
-export interface MinutaClienteData {
+export interface MinutaConfirmacaoInternaData {
   cliente: string;
   demanda: string;
-  linkMinuta: string;
-  validoAte: string;
+  destinatarioCliente: string;
+  usuarioJuridico: string;
+  dataHora: string;
+  texto: string;
+  link: string;
 }
 
-export function buildMinutaClienteSubject(cliente: string): string {
-  return `Minuta contratual para assinatura — ${cliente}`;
+export function buildMinutaConfirmacaoInternaSubject(cliente: string): string {
+  return `Minuta registrada como enviada ao cliente — ${cliente}`;
 }
 
-// E-mail enviado ao responsável pela assinatura (contato do cliente) com
-// o link para baixar a minuta. Diferente da notificação interna ao
-// Jurídico, aqui o link aponta diretamente para o documento (o
-// destinatário é externo e não tem login no sistema) — uma URL assinada
-// de validade limitada, nunca um anexo direto no e-mail.
-export function buildMinutaClienteHtml(data: MinutaClienteData): string {
+// E-mail interno (equipe Aquila) confirmando que o Jurídico registrou o
+// envio da minuta ao cliente. O envio ao cliente em si continua manual,
+// fora do sistema — este e-mail é só a confirmação interna, com um texto
+// personalizável definido pelo administrador.
+export function buildMinutaConfirmacaoInternaHtml(data: MinutaConfirmacaoInternaData): string {
+  const linha = (label: string, value: string) => `
+    <tr>
+      <td style="padding:6px 0;color:#64748b;font-size:13px;width:170px;vertical-align:top;">${label}</td>
+      <td style="padding:6px 0;color:#0f172a;font-size:14px;font-weight:600;">${escapeHtml(value)}</td>
+    </tr>`;
+
   return `<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(buildMinutaClienteSubject(data.cliente))}</title>
+    <title>${escapeHtml(buildMinutaConfirmacaoInternaSubject(data.cliente))}</title>
   </head>
   <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:24px 12px;">
@@ -111,32 +119,33 @@ export function buildMinutaClienteHtml(data: MinutaClienteData): string {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
             <tr>
               <td style="background:#1e3a8a;padding:20px 28px;">
-                <span style="color:#ffffff;font-size:16px;font-weight:700;letter-spacing:0.02em;">Aquila Consultoria</span>
+                <span style="color:#ffffff;font-size:16px;font-weight:700;letter-spacing:0.02em;">Workflow Aquila</span>
               </td>
             </tr>
             <tr>
               <td style="padding:28px 28px 8px 28px;">
-                <h1 style="margin:0 0 16px 0;font-size:19px;color:#0f172a;">Minuta contratual para assinatura</h1>
-                <p style="margin:0 0 16px 0;font-size:14px;color:#334155;line-height:1.6;">
-                  Olá, encaminhamos a minuta contratual referente a <strong>${escapeHtml(data.demanda)}</strong>,
-                  de <strong>${escapeHtml(data.cliente)}</strong>, para análise e assinatura.
-                </p>
+                <p style="margin:0 0 4px 0;font-size:12px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:0.06em;">Notificação automática</p>
+                <h1 style="margin:0 0 16px 0;font-size:19px;color:#0f172a;">Minuta registrada como enviada ao cliente</h1>
+                <p style="margin:0 0 20px 0;font-size:14px;color:#334155;line-height:1.5;">${escapeHtml(data.texto)}</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;padding:8px 0;margin-bottom:20px;">
+                  ${linha("Cliente", data.cliente)}
+                  ${linha("Demanda", data.demanda)}
+                  ${linha("Enviado para (cliente)", data.destinatarioCliente)}
+                  ${linha("Registrado por", data.usuarioJuridico)}
+                  ${linha("Data e horário", data.dataHora)}
+                </table>
                 <table role="presentation" cellpadding="0" cellspacing="0">
                   <tr>
                     <td style="border-radius:8px;background:#2563eb;">
-                      <a href="${data.linkMinuta}" style="display:inline-block;padding:12px 24px;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;">Baixar minuta contratual</a>
+                      <a href="${data.link}" style="display:inline-block;padding:12px 24px;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;">Acessar demanda no sistema</a>
                     </td>
                   </tr>
                 </table>
-                <p style="margin:20px 0 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
-                  Este link é válido até ${escapeHtml(data.validoAte)}. Após assinar, devolva o documento assinado
-                  ao seu contato na Aquila para darmos sequência ao projeto.
-                </p>
               </td>
             </tr>
             <tr>
               <td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;">
-                <p style="margin:0;font-size:11px;color:#94a3b8;">Esta é uma mensagem automática da Aquila Consultoria. Em caso de dúvidas, entre em contato com o responsável comercial ou jurídico do seu projeto.</p>
+                <p style="margin:0;font-size:11px;color:#94a3b8;">Esta é uma mensagem automática do Workflow Aquila. Não responda a este e-mail.</p>
               </td>
             </tr>
           </table>
