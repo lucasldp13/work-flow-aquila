@@ -63,6 +63,18 @@ export interface Database {
         Insert: Partial<Database["public"]["Tables"]["clients"]["Row"]> & { name: string; cnpj: string };
         Update: Partial<Database["public"]["Tables"]["clients"]["Row"]>;
       };
+      consultores: {
+        Row: {
+          id: string;
+          nome: string;
+          email: string;
+          categoria: string | null;
+          ativo: boolean;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["consultores"]["Row"]> & { nome: string; email: string };
+        Update: Partial<Database["public"]["Tables"]["consultores"]["Row"]>;
+      };
       demands: {
         Row: {
           id: string;

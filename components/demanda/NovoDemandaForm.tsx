@@ -7,6 +7,7 @@ import { Input, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { ClientPicker, ClientOption } from "./ClientPicker";
+import { ConsultorPicker } from "./ConsultorPicker";
 import { ContatosField, ContatoFormValue } from "./ContatosField";
 import { isValidCnpj } from "@/lib/workflow/validations";
 
@@ -19,6 +20,7 @@ export function NovoDemandaForm() {
   const [nomeDemanda, setNomeDemanda] = useState("");
   const [consultorNome, setConsultorNome] = useState("");
   const [consultorEmail, setConsultorEmail] = useState("");
+  const [consultorCategoria, setConsultorCategoria] = useState<string | null>(null);
   const [valor, setValor] = useState("");
   const [markup, setMarkup] = useState("");
   const [escopo, setEscopo] = useState("");
@@ -107,10 +109,16 @@ export function NovoDemandaForm() {
             }}
           />
           <Input label="Nome da demanda / projeto" required value={nomeDemanda} onChange={(e) => setNomeDemanda(e.target.value)} placeholder="Ex.: Diagnóstico organizacional 2026" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input label="Nome do consultor" required value={consultorNome} onChange={(e) => setConsultorNome(e.target.value)} />
-            <Input label="E-mail do consultor" type="email" required value={consultorEmail} onChange={(e) => setConsultorEmail(e.target.value)} />
-          </div>
+          <ConsultorPicker
+            nome={consultorNome}
+            email={consultorEmail}
+            categoria={consultorCategoria}
+            onChange={({ nome, email, categoria }) => {
+              setConsultorNome(nome);
+              setConsultorEmail(email);
+              setConsultorCategoria(categoria);
+            }}
+          />
         </CardContent>
       </Card>
 
