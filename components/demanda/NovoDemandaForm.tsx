@@ -47,8 +47,13 @@ export function NovoDemandaForm() {
       setError("Preencha nome da demanda, nome e e-mail do consultor.");
       return;
     }
+    if (!proposta) {
+      setError("Anexe a proposta recebida do consultor antes de cadastrar a demanda — o Comercial não pode registrar uma demanda sem ela.");
+      return;
+    }
 
     setLoading(true);
+    let demandId: string | null = null;
     try {
       const res = await fetch("/api/demands", {
         method: "POST",
@@ -75,16 +80,24 @@ export function NovoDemandaForm() {
         return;
       }
 
-      const demandId = data.demand.id as string;
+      demandId = data.demand.id as string;
 
-      if (proposta) {
-        await uploadDemandDocument(demandId, proposta, "proposta");
+      const uploadResult = await uploadDemandDocument(demandId, proposta, "proposta");
+      if (!uploadResult.ok) {
+        // Sem a proposta anexada a demanda não pode existir: desfaz o cadastro.
+        await fetch(`/api/demands/${demandId}`, { method: "DELETE" }).catch(() => {});
+        setError(uploadResult.error ?? "Não foi possível anexar a proposta. A demanda não foi cadastrada — tente novamente.");
+        setLoading(false);
+        return;
       }
 
       router.push(`/demandas/${demandId}`);
       router.refresh();
     } catch {
-      setError("Erro inesperado ao cadastrar a demanda.");
+      if (demandId) {
+        await fetch(`/api/demands/${demandId}`, { method: "DELETE" }).catch(() => {});
+      }
+      setError("Erro inesperado ao cadastrar a demanda. A demanda não foi salva — tente novamente.");
       setLoading(false);
     }
   }
@@ -163,16 +176,19 @@ export function NovoDemandaForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Proposta recebida do consultor</CardTitle>
+          <CardTitle>
+            Proposta recebida do consultor <span className="text-rose-500">*</span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <input
             type="file"
+            required
             accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
             onChange={(e) => setProposta(e.target.files?.[0] ?? null)}
             className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-brand-700 hover:file:bg-brand-100"
           />
-          <p className="mt-1 text-xs text-slate-500">Você também pode anexar a proposta depois, na página da demanda.</p>
+          <p className="mt-1 text-xs text-slate-500">Obrigatório — não é possível cadastrar a demanda sem anexar a proposta recebida do consultor.</p>
         </CardContent>
       </Card>
 

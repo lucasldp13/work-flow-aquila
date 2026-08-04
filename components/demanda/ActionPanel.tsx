@@ -189,6 +189,7 @@ function ComercialAnaliseActions({ data, onChanged }: { data: DemandDetailPayloa
   const [loadingForward, setLoadingForward] = useState(false);
   const [loadingAguardar, setLoadingAguardar] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const temProposta = data.documents.some((d) => d.tipo === "proposta");
 
   async function handleForward() {
     setLoadingForward(true);
@@ -223,12 +224,17 @@ function ComercialAnaliseActions({ data, onChanged }: { data: DemandDetailPayloa
         <p className="text-sm text-slate-600">
           Ajuste as informações comerciais na seção acima, registre dúvidas na aba de comentários e, quando estiver tudo certo, encaminhe ao Jurídico.
         </p>
+        {!temProposta && (
+          <Alert variant="warning">
+            Anexe a proposta recebida do consultor na aba <strong>Documentos</strong> (tipo &quot;Proposta comercial&quot;) para poder encaminhar ao Jurídico.
+          </Alert>
+        )}
         {error && <Alert variant="error">{error}</Alert>}
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={handleAguardar} loading={loadingAguardar}>
             Marcar aguardando retorno do consultor
           </Button>
-          <Button onClick={handleForward} loading={loadingForward}>
+          <Button onClick={handleForward} loading={loadingForward} disabled={!temProposta}>
             Encaminhar ao Jurídico
           </Button>
         </div>

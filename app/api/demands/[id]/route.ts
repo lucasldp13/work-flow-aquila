@@ -129,19 +129,31 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-// Exclusão definitiva de uma demanda — restrita ao Administrador (acesso
-// total, conforme os perfis do sistema). Remove primeiro os documentos no
-// Storage e, em seguida, a linha da demanda; as tabelas filhas (comentários,
-// histórico, equipe, pagamentos, etc.) são removidas em cascata pelo banco.
+// Exclusão definitiva de uma demanda — normalmente restrita ao
+// Administrador (acesso total). Exceção: o próprio Comercial que acabou
+// de criar a demanda pode desfazê-la, mas só enquanto ela ainda está
+// "recebida_comercial" (ninguém mais mexeu) — usado para desfazer o
+// cadastro quando o anexo obrigatório da proposta falha. Remove primeiro
+// os documentos no Storage e, em seguida, a linha da demanda; as tabelas
+// filhas (comentários, histórico, equipe, pagamentos etc.) são removidas
+// em cascata pelo banco.
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { supabase, profile } = await requireProfile();
-    requireRole(profile, ["admin"]);
 
-    const { data: demand, error: findError } = await supabase.from("demands").select("id, nome_demanda").eq("id", params.id).maybeSingle();
+    const { data: demand, error: findError } = await supabase
+      .from("demands")
+      .select("id, nome_demanda, status, created_by")
+      .eq("id", params.id)
+      .maybeSingle();
     if (findError) throw findError;
     if (!demand) {
       return NextResponse.json({ error: "Demanda não encontrada." }, { status: 404 });
+    }
+
+    const podeExcluirComoCriador = profile.role === "comercial" && demand.created_by === profile.id && demand.status === "recebida_comercial";
+    if (profile.role !== "admin" && !podeExcluirComoCriador) {
+      return NextResponse.json({ error: "Você não tem permissão para excluir esta demanda." }, { status: 403 });
     }
 
     await deleteDemandFiles(params.id);

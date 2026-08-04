@@ -22,6 +22,15 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
       throw new ApiError(400, `Não é possível encaminhar ao Jurídico a partir do status atual (${demand.status}).`);
     }
 
+    const { count: propostaCount } = await supabase
+      .from("demand_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("demand_id", params.id)
+      .eq("tipo", "proposta");
+    if (!propostaCount) {
+      throw new ApiError(400, "Anexe a proposta recebida do consultor (aba Documentos) antes de encaminhar ao Jurídico.");
+    }
+
     const { data: prazoSetting } = await supabase.from("app_settings").select("valor").eq("chave", "prazo_juridico").maybeSingle();
     const prazoConfig = (prazoSetting?.valor as { dias?: number; tipo?: "uteis" | "corridos" } | null) ?? { dias: 4, tipo: "uteis" };
     const dias = prazoConfig.dias ?? 4;
