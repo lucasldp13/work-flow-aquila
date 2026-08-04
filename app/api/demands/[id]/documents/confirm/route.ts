@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
+import { z } from "zod";
 import { requireProfile, handleApiError, appUrl, ApiError } from "@/lib/api/helpers";
-import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { notifyJuridico } from "@/lib/email/notify";
 import { canEditDemandAtStatus } from "@/lib/workflow/permissions";
 import type { DocumentType } from "@/types/database";
 
 const DOCUMENT_TYPES: DocumentType[] = ["proposta", "minuta", "contrato_assinado", "equipe", "comprovante", "outro"];
-const MAX_SIZE_BYTES = 25 * 1024 * 1024;
 
 const TIPO_LABEL: Record<DocumentType, string> = {
   proposta: "Proposta comercial",
@@ -18,48 +16,45 @@ const TIPO_LABEL: Record<DocumentType, string> = {
   outro: "Documento",
 };
 
+const schema = z.object({
+  tipo: z.string(),
+  nomeArquivo: z.string().min(1),
+  caminhoArquivo: z.string().min(1),
+  tamanhoBytes: z.number().nonnegative().optional(),
+});
+
+// Segundo passo do upload: depois que o navegador já enviou o arquivo
+// direto ao Storage usando a URL assinada, esta rota apenas registra os
+// metadados do documento (payload pequeno, sem o arquivo em si).
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { supabase, profile } = await requireProfile();
+    const body = schema.parse(await request.json());
+    const tipo = (DOCUMENT_TYPES.includes(body.tipo as DocumentType) ? body.tipo : "outro") as DocumentType;
 
-    const { data: demand, error: demandError } = await supabase.from("demands").select("id, status, nome_demanda, clients(name)").eq("id", params.id).single();
+    if (!body.caminhoArquivo.startsWith(`${params.id}/`)) {
+      throw new ApiError(400, "Caminho de arquivo inválido para esta demanda.");
+    }
+
+    const { data: demand, error: demandError } = await supabase
+      .from("demands")
+      .select("id, status, nome_demanda, clients(name)")
+      .eq("id", params.id)
+      .single();
     if (demandError) throw demandError;
 
     if (!canEditDemandAtStatus(profile.role, demand.status)) {
       throw new ApiError(403, "Sua área não pode anexar documentos nesta etapa da demanda.");
     }
 
-    const formData = await request.formData();
-    const file = formData.get("file");
-    const tipoRaw = String(formData.get("tipo") ?? "outro");
-    const tipo = (DOCUMENT_TYPES.includes(tipoRaw as DocumentType) ? tipoRaw : "outro") as DocumentType;
-
-    if (!(file instanceof File)) {
-      throw new ApiError(400, "Nenhum arquivo enviado.");
-    }
-    if (file.size > MAX_SIZE_BYTES) {
-      throw new ApiError(400, "Arquivo excede o limite de 25MB.");
-    }
-
-    const admin = createAdminSupabaseClient();
-    const extension = file.name.includes(".") ? file.name.split(".").pop() : "";
-    const storagePath = `${params.id}/${tipo}/${randomUUID()}${extension ? `.${extension}` : ""}`;
-    const arrayBuffer = await file.arrayBuffer();
-
-    const { error: uploadError } = await admin.storage.from("documentos").upload(storagePath, arrayBuffer, {
-      contentType: file.type || "application/octet-stream",
-      upsert: false,
-    });
-    if (uploadError) throw uploadError;
-
     const { data: document, error: insertError } = await supabase
       .from("demand_documents")
       .insert({
         demand_id: params.id,
         tipo,
-        nome_arquivo: file.name,
-        caminho_arquivo: storagePath,
-        tamanho_bytes: file.size,
+        nome_arquivo: body.nomeArquivo,
+        caminho_arquivo: body.caminhoArquivo,
+        tamanho_bytes: body.tamanhoBytes ?? null,
         confidencial: true,
         uploaded_by: profile.id,
       })
@@ -82,6 +77,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     return NextResponse.json({ document }, { status: 201 });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
+    }
     return handleApiError(error);
   }
 }

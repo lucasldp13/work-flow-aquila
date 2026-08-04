@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/api/fetcher";
 import { checkMinutaEnvio, isValidEmail } from "@/lib/workflow/validations";
 import { diasRestantes, isPrazoVencido } from "@/lib/workflow/validations";
 import { formatDate } from "@/lib/utils/format";
+import { FileText } from "lucide-react";
 import type { DemandDetailPayload, SessionInfo } from "./types";
 
 export function ActionPanel({ data, session, onChanged }: { data: DemandDetailPayload; session: SessionInfo; onChanged: () => Promise<void> }) {
@@ -80,10 +81,43 @@ function PrazoInfo({ limite, dias, tipo }: { limite: string; dias: number | null
   const restantes = diasRestantes(limite);
   const vencido = isPrazoVencido(limite);
   return (
-    <Alert variant={vencido ? "error" : "info"} title="Prazo jurídico">
-      Limite: {formatDate(limite)} ({dias} dias {tipo === "uteis" ? "úteis" : "corridos"}).{" "}
-      {vencido ? "Prazo vencido." : `${restantes} dia(s) restante(s).`}
+    <Alert variant={vencido ? "error" : "warning"} title={`Prazo jurídico: ${dias ?? 4} dias ${tipo === "corridos" ? "corridos" : "úteis"} para enviar ao cliente`}>
+      Limite: <strong>{formatDate(limite)}</strong>. {vencido ? "Prazo vencido." : `${restantes} dia(s) restante(s).`}
     </Alert>
+  );
+}
+
+function PropostaLink({ data }: { data: DemandDetailPayload }) {
+  const proposta = [...data.documents].filter((d) => d.tipo === "proposta").sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+  const [loading, setLoading] = useState(false);
+
+  if (!proposta) {
+    return (
+      <Alert variant="warning">Nenhuma proposta comercial foi anexada pelo Comercial ainda — verifique antes de elaborar a minuta.</Alert>
+    );
+  }
+
+  async function handleOpen() {
+    setLoading(true);
+    const res = await fetch(`/api/documents/${proposta.id}/download`);
+    const json = await res.json();
+    setLoading(false);
+    if (res.ok) window.open(json.url, "_blank", "noopener,noreferrer");
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleOpen}
+      disabled={loading}
+      className="flex w-full items-center gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-left hover:bg-brand-100"
+    >
+      <FileText className="h-5 w-5 shrink-0 text-brand-700" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-brand-900">Abrir proposta comercial recebida</span>
+        <span className="block truncate text-xs text-brand-700">{proposta.nome_arquivo}</span>
+      </span>
+    </button>
   );
 }
 
@@ -247,7 +281,11 @@ function JuridicoValidacaoActions({ data, onChanged }: { data: DemandDetailPaylo
         <CardTitle>Validação jurídica</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-slate-600">Valide dados comerciais, documentos, escopo e condições. Aprove para elaborar a minuta ou devolva ao Comercial com justificativa.</p>
+        {data.demand.juridico_prazo_limite && (
+          <PrazoInfo limite={data.demand.juridico_prazo_limite} dias={data.demand.juridico_prazo_dias} tipo={data.demand.juridico_prazo_tipo} />
+        )}
+        <PropostaLink data={data} />
+        <p className="text-sm text-slate-600">Valide dados comerciais, documentos, solução e condições. Aprove para elaborar a minuta ou devolva ao Comercial com justificativa.</p>
         {error && <Alert variant="error">{error}</Alert>}
         {!showDevolucao ? (
           <div className="flex flex-wrap gap-3">
@@ -306,6 +344,10 @@ function MinutaEnvioPanel({ data, onChanged }: { data: DemandDetailPayload; onCh
         <CardTitle>Envio da minuta</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {data.demand.juridico_prazo_limite && (
+          <PrazoInfo limite={data.demand.juridico_prazo_limite} dias={data.demand.juridico_prazo_dias} tipo={data.demand.juridico_prazo_tipo} />
+        )}
+        <PropostaLink data={data} />
         <p className="text-sm text-slate-600">
           Anexe a minuta na aba <strong>Documentos</strong> (tipo &quot;Minuta contratual&quot;) e confirme o e-mail do responsável pela assinatura para liberar o envio.
         </p>

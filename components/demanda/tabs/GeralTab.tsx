@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Input, Textarea } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { canEditDemandAtStatus } from "@/lib/workflow/permissions";
@@ -12,6 +13,7 @@ import { apiRequest } from "@/lib/api/fetcher";
 import { ActionPanel } from "../ActionPanel";
 import { DeleteDemandButton } from "../DeleteDemandButton";
 import { ValorBrutoPreview } from "../ValorBrutoPreview";
+import { SolucaoPicker } from "../SolucaoPicker";
 import type { DemandDetailPayload, SessionInfo } from "../types";
 
 export function GeralTab({ data, session, onChanged }: { data: DemandDetailPayload; session: SessionInfo; onChanged: () => Promise<void> }) {
@@ -111,8 +113,20 @@ function ReadOnlyInfo({ data }: { data: DemandDetailPayload }) {
       <Info label="Prazo de execução" value={formatDate(demand.prazo)} />
       <Info label="E-mail do responsável pela assinatura" value={demand.signatario_email ?? "—"} />
       <div className="sm:col-span-2">
-        <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Escopo</dt>
-        <dd className="mt-1 whitespace-pre-wrap text-slate-700">{demand.escopo || "—"}</dd>
+        <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Solução</dt>
+        <dd className="mt-1">
+          {demand.solucoes.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {demand.solucoes.map((s) => (
+                <Badge key={s} className="border-brand-200 bg-brand-50 text-brand-800">
+                  {s}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <span className="text-slate-400">—</span>
+          )}
+        </dd>
       </div>
     </dl>
   );
@@ -131,7 +145,7 @@ function EditForm({ data, onCancel, onSaved }: { data: DemandDetailPayload; onCa
   const { demand } = data;
   const [valor, setValor] = useState(demand.valor?.toString() ?? "");
   const [markup, setMarkup] = useState(demand.markup?.toString() ?? "");
-  const [escopo, setEscopo] = useState(demand.escopo ?? "");
+  const [solucoes, setSolucoes] = useState<string[]>(demand.solucoes ?? []);
   const [prazo, setPrazo] = useState(demand.prazo ?? "");
   const [signatarioEmail, setSignatarioEmail] = useState(demand.signatario_email ?? "");
   const [loading, setLoading] = useState(false);
@@ -145,7 +159,7 @@ function EditForm({ data, onCancel, onSaved }: { data: DemandDetailPayload; onCa
       body: JSON.stringify({
         valor: valor ? Number(valor) : null,
         markup: markup ? Number(markup) : null,
-        escopo,
+        solucoes,
         prazo: prazo || null,
         signatarioEmail: signatarioEmail || null,
       }),
@@ -168,7 +182,7 @@ function EditForm({ data, onCancel, onSaved }: { data: DemandDetailPayload; onCa
       </div>
       <ValorBrutoPreview valor={valor} markup={markup} />
       <Input label="E-mail do responsável pela assinatura" type="email" value={signatarioEmail} onChange={(e) => setSignatarioEmail(e.target.value)} />
-      <Textarea label="Escopo" value={escopo} onChange={(e) => setEscopo(e.target.value)} />
+      <SolucaoPicker value={solucoes} onChange={setSolucoes} />
       <div className="flex gap-2">
         <Button onClick={handleSave} loading={loading}>
           Salvar alterações

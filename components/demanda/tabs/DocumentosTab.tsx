@@ -7,6 +7,7 @@ import { Select } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
 import { formatDateTime } from "@/lib/utils/format";
 import { canEditDemandAtStatus, canViewDocument } from "@/lib/workflow/permissions";
+import { uploadDemandDocument } from "@/lib/api/uploadDocument";
 import { Download, FileText, Lock, UploadCloud } from "lucide-react";
 import type { DemandDetailPayload, SessionInfo } from "../types";
 import type { DocumentType } from "@/types/database";
@@ -34,14 +35,10 @@ export function DocumentosTab({ data, session, onChanged }: { data: DemandDetail
     }
     setLoading(true);
     setError(null);
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("tipo", tipo);
-    const res = await fetch(`/api/demands/${data.demand.id}/documents`, { method: "POST", body: formData });
-    const json = await res.json();
+    const result = await uploadDemandDocument(data.demand.id, file, tipo);
     setLoading(false);
-    if (!res.ok) {
-      setError(json.error ?? "Erro ao enviar documento.");
+    if (!result.ok) {
+      setError(result.error ?? "Erro ao enviar documento.");
       return;
     }
     setFile(null);

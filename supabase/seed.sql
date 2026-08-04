@@ -110,10 +110,10 @@ begin
   -- --------------------------------------------------------------------
   -- Demanda 1: recém recebida do consultor (comercial ainda analisando)
   -- --------------------------------------------------------------------
-  insert into demands (client_id, nome_demanda, consultor_nome, consultor_email, valor, markup, escopo, prazo,
+  insert into demands (client_id, nome_demanda, consultor_nome, consultor_email, valor, markup, solucoes, prazo,
                         contatos, signatario_email, status, comercial_responsavel_id, created_by)
   values (v_cliente1, 'Diagnóstico organizacional e plano de ação 2026', 'Ricardo Alves', 'ricardo.alves@consultores.com.br',
-          185000.00, 22.5, 'Diagnóstico organizacional completo com entrevistas, mapeamento de processos e plano de ação para 12 meses.',
+          185000.00, 22.5, array['Diagnóstico de Maturidade de Gestão', 'Planejamento Estratégico'],
           current_date + interval '60 days', '[{"nome":"Marina Souza","cargo":"Diretora Administrativa","email":"marina@horizonte.com.br","telefone":"(11) 98888-1111"}]'::jsonb,
           'marina@horizonte.com.br', 'em_analise_comercial', v_comercial_id, v_comercial_id)
   returning id into v_demanda1;
@@ -128,11 +128,11 @@ begin
   -- --------------------------------------------------------------------
   -- Demanda 2: encaminhada ao Jurídico, dentro do prazo
   -- --------------------------------------------------------------------
-  insert into demands (client_id, nome_demanda, consultor_nome, consultor_email, valor, markup, escopo, prazo,
+  insert into demands (client_id, nome_demanda, consultor_nome, consultor_email, valor, markup, solucoes, prazo,
                         contatos, signatario_email, status, comercial_responsavel_id,
                         juridico_prazo_inicio, juridico_prazo_dias, juridico_prazo_tipo, juridico_prazo_limite, created_by)
   values (v_cliente2, 'Reestruturação da área de compras', 'Fernanda Lima', 'fernanda.lima@consultores.com.br',
-          260000.00, 20, 'Reestruturação completa da área de compras, incluindo governança e política de fornecedores.',
+          260000.00, 20, array['Reestruturação Organizacional', 'Gestão de Processos'],
           current_date + interval '90 days', '[{"nome":"Eduardo Prado","cargo":"CFO","email":"eduardo@saobento.com.br","telefone":"(41) 97777-2222"}]'::jsonb,
           'eduardo@saobento.com.br', 'em_validacao_juridica', v_comercial_id,
           now() - interval '1 day', 4, 'uteis', current_date + interval '3 days', v_comercial_id)
@@ -147,11 +147,11 @@ begin
   -- --------------------------------------------------------------------
   -- Demanda 3: minuta enviada, aguardando assinaturas
   -- --------------------------------------------------------------------
-  insert into demands (client_id, nome_demanda, consultor_nome, consultor_email, valor, markup, escopo, prazo,
+  insert into demands (client_id, nome_demanda, consultor_nome, consultor_email, valor, markup, solucoes, prazo,
                         contatos, signatario_email, status, comercial_responsavel_id,
                         juridico_prazo_inicio, juridico_prazo_dias, juridico_prazo_tipo, juridico_prazo_limite, created_by)
   values (v_cliente3, 'Implantação de escritório de projetos (PMO)', 'Ricardo Alves', 'ricardo.alves@consultores.com.br',
-          320000.00, 25, 'Implantação de PMO corporativo com metodologia própria e capacitação de equipe interna.',
+          320000.00, 25, array['Gerenciamento de Projetos'],
           current_date + interval '120 days', '[{"nome":"Juliana Matos","cargo":"CEO","email":"juliana@valeverde.com.br","telefone":"(31) 96666-3333"}]'::jsonb,
           'juliana@valeverde.com.br', 'aguardando_assinaturas', v_comercial2_id,
           now() - interval '5 days', 4, 'uteis', current_date - interval '1 day', v_comercial2_id)
@@ -179,10 +179,10 @@ begin
   -- --------------------------------------------------------------------
   -- Demanda 4: contrato assinado, equipe em montagem
   -- --------------------------------------------------------------------
-  insert into demands (client_id, nome_demanda, consultor_nome, consultor_email, valor, markup, escopo, prazo,
+  insert into demands (client_id, nome_demanda, consultor_nome, consultor_email, valor, markup, solucoes, prazo,
                         contatos, signatario_email, status, comercial_responsavel_id, created_by)
   values (v_cliente4, 'Consultoria em gestão de estoques e logística', 'Camila Duarte', 'camila.duarte@consultores.com.br',
-          145000.00, 18, 'Otimização da cadeia logística e política de estoques mínimos.',
+          145000.00, 18, array['Supply Chain - Cadeia de Suprimentos'],
           current_date + interval '75 days', '[{"nome":"André Ferraz","cargo":"Diretor de Operações","email":"andre@techfarma.com.br","telefone":"(11) 95555-4444"}]'::jsonb,
           'andre@techfarma.com.br', 'equipe_em_montagem', v_comercial_id, v_comercial_id)
   returning id into v_demanda4;
@@ -218,10 +218,10 @@ begin
   -- --------------------------------------------------------------------
   -- Demanda 5: em processamento financeiro
   -- --------------------------------------------------------------------
-  insert into demands (client_id, nome_demanda, consultor_nome, consultor_email, valor, markup, escopo, prazo,
+  insert into demands (client_id, nome_demanda, consultor_nome, consultor_email, valor, markup, solucoes, prazo,
                         contatos, signatario_email, status, comercial_responsavel_id, created_by)
   values (v_cliente5, 'Programa de capacitação de lideranças', 'Fernanda Lima', 'fernanda.lima@consultores.com.br',
-          98000.00, 15, 'Programa de capacitação de lideranças em 4 módulos presenciais.',
+          98000.00, 15, array['Treinamento - Liderança e Gestão de Pessoas'],
           current_date + interval '45 days', '[{"nome":"Sérgio Melo","cargo":"Diretor de Pessoas","email":"sergio@redealfa.com.br","telefone":"(19) 94444-5555"}]'::jsonb,
           'sergio@redealfa.com.br', 'em_processamento_financeiro', v_comercial2_id, v_comercial2_id)
   returning id into v_demanda5;
@@ -252,10 +252,10 @@ begin
   -- --------------------------------------------------------------------
   -- Demanda 6: devolvida ao comercial (exemplo de trava com justificativa)
   -- --------------------------------------------------------------------
-  insert into demands (client_id, nome_demanda, consultor_nome, consultor_email, valor, markup, escopo, prazo,
+  insert into demands (client_id, nome_demanda, consultor_nome, consultor_email, valor, markup, solucoes, prazo,
                         contatos, signatario_email, status, comercial_responsavel_id, devolucao_motivo, created_by)
   values (v_cliente1, 'Revisão da política comercial', 'Camila Duarte', 'camila.duarte@consultores.com.br',
-          75000.00, 20, 'Revisão e atualização da política comercial e de descontos.',
+          75000.00, 20, array['Excelência Comercial'],
           current_date + interval '30 days', '[{"nome":"Marina Souza","cargo":"Diretora Administrativa","email":"marina@horizonte.com.br","telefone":"(11) 98888-1111"}]'::jsonb,
           '', 'devolvida_comercial', v_comercial_id,
           'Faltam os dados completos do CNPJ da contratante e o e-mail do responsável pela assinatura não foi informado.', v_comercial_id)

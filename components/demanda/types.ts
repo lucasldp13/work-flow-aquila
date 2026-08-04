@@ -9,7 +9,7 @@ export interface DemandDetail {
   valor: number | null;
   markup: number | null;
   valor_bruto: number | null;
-  escopo: string | null;
+  solucoes: string[];
   prazo: string | null;
   contatos: Contato[];
   signatario_email: string | null;

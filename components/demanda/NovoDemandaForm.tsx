@@ -3,14 +3,16 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Input, Textarea } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { ClientPicker, ClientOption } from "./ClientPicker";
 import { ConsultorPicker } from "./ConsultorPicker";
 import { ValorBrutoPreview } from "./ValorBrutoPreview";
+import { SolucaoPicker } from "./SolucaoPicker";
 import { ContatosField, ContatoFormValue } from "./ContatosField";
 import { isValidCnpj } from "@/lib/workflow/validations";
+import { uploadDemandDocument } from "@/lib/api/uploadDocument";
 
 export function NovoDemandaForm() {
   const router = useRouter();
@@ -24,7 +26,7 @@ export function NovoDemandaForm() {
   const [consultorCategoria, setConsultorCategoria] = useState<string | null>(null);
   const [valor, setValor] = useState("");
   const [markup, setMarkup] = useState("");
-  const [escopo, setEscopo] = useState("");
+  const [solucoes, setSolucoes] = useState<string[]>([]);
   const [prazo, setPrazo] = useState("");
   const [signatarioEmail, setSignatarioEmail] = useState("");
   const [contatos, setContatos] = useState<ContatoFormValue[]>([]);
@@ -60,7 +62,7 @@ export function NovoDemandaForm() {
           consultorEmail,
           valor: valor ? Number(valor) : null,
           markup: markup ? Number(markup) : null,
-          escopo,
+          solucoes,
           prazo: prazo || undefined,
           contatos: contatos.filter((c) => c.nome && c.email),
           signatarioEmail: signatarioEmail || undefined,
@@ -76,10 +78,7 @@ export function NovoDemandaForm() {
       const demandId = data.demand.id as string;
 
       if (proposta) {
-        const formData = new FormData();
-        formData.append("file", proposta);
-        formData.append("tipo", "proposta");
-        await fetch(`/api/demands/${demandId}/documents`, { method: "POST", body: formData });
+        await uploadDemandDocument(demandId, proposta, "proposta");
       }
 
       router.push(`/demandas/${demandId}`);
@@ -142,7 +141,7 @@ export function NovoDemandaForm() {
             <Input label="Prazo de execução" type="date" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
           </div>
           <ValorBrutoPreview valor={valor} markup={markup} />
-          <Textarea label="Escopo" value={escopo} onChange={(e) => setEscopo(e.target.value)} placeholder="Descreva o escopo do projeto…" />
+          <SolucaoPicker value={solucoes} onChange={setSolucoes} />
         </CardContent>
       </Card>
 

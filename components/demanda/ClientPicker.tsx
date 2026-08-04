@@ -3,13 +3,23 @@
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { formatCnpj } from "@/lib/workflow/validations";
 
 export interface ClientOption {
   id: string;
   name: string;
   cnpj: string;
+  classificacao?: string | null;
 }
+
+const CLASSIFICACAO_COLOR: Record<string, string> = {
+  "Cliente ativo": "border-emerald-200 bg-emerald-50 text-emerald-700",
+  "Cliente Inativo": "border-slate-200 bg-slate-100 text-slate-500",
+  "Ex-Cliente": "border-slate-200 bg-slate-100 text-slate-500",
+  "Potencial Prospectado": "border-amber-200 bg-amber-50 text-amber-700",
+  "Potencial não Prospectado": "border-amber-200 bg-amber-50 text-amber-700",
+};
 
 interface ClientPickerProps {
   selected: ClientOption | null;
@@ -75,9 +85,16 @@ export function ClientPicker({ selected, onSelect, newClientName, newClientCnpj,
                 <p className="font-medium text-slate-900">{selected.name}</p>
                 <p className="text-xs text-slate-500">{formatCnpj(selected.cnpj)}</p>
               </div>
-              <Button type="button" variant="ghost" size="sm" onClick={() => onSelect(null)}>
-                Trocar
-              </Button>
+              <div className="flex items-center gap-2">
+                {selected.classificacao && (
+                  <Badge className={CLASSIFICACAO_COLOR[selected.classificacao] ?? "border-slate-200 bg-slate-100 text-slate-600"}>
+                    {selected.classificacao}
+                  </Badge>
+                )}
+                <Button type="button" variant="ghost" size="sm" onClick={() => onSelect(null)}>
+                  Trocar
+                </Button>
+              </div>
             </div>
           ) : (
             <>
@@ -91,7 +108,7 @@ export function ClientPicker({ selected, onSelect, newClientName, newClientCnpj,
                 onFocus={() => setOpen(true)}
               />
               {open && results.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
+                <div className="absolute z-10 mt-1 max-h-80 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
                   {results.map((client) => (
                     <button
                       key={client.id}
@@ -100,10 +117,17 @@ export function ClientPicker({ selected, onSelect, newClientName, newClientCnpj,
                         onSelect(client);
                         setOpen(false);
                       }}
-                      className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50"
                     >
-                      <p className="font-medium text-slate-800">{client.name}</p>
-                      <p className="text-xs text-slate-500">{formatCnpj(client.cnpj)}</p>
+                      <span>
+                        <p className="font-medium text-slate-800">{client.name}</p>
+                        <p className="text-xs text-slate-500">{formatCnpj(client.cnpj)}</p>
+                      </span>
+                      {client.classificacao && (
+                        <Badge className={`shrink-0 ${CLASSIFICACAO_COLOR[client.classificacao] ?? "border-slate-200 bg-slate-100 text-slate-600"}`}>
+                          {client.classificacao}
+                        </Badge>
+                      )}
                     </button>
                   ))}
                 </div>

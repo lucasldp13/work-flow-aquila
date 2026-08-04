@@ -45,9 +45,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && pathname === "/login") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
+  // Propositalmente NÃO pula a tela de login quando já existe uma sessão
+  // válida: acessar /login (ou o link raiz do sistema) sempre mostra o
+  // formulário — o acesso nunca retoma a página em que o usuário estava.
 
   if (user) {
     const firstSegment = pathname.split("/")[1];

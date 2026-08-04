@@ -57,6 +57,7 @@ export interface Database {
           id: string;
           name: string;
           cnpj: string;
+          classificacao: string | null;
           created_by: string | null;
           created_at: string;
         };
@@ -85,7 +86,7 @@ export interface Database {
           valor: number | null;
           markup: number | null;
           valor_bruto: number | null;
-          escopo: string | null;
+          solucoes: string[];
           prazo: string | null;
           contatos: Contato[];
           signatario_email: string | null;

@@ -18,7 +18,7 @@ const updateDemandSchema = z.object({
   nomeDemanda: z.string().min(1).optional(),
   valor: z.number().nonnegative().nullable().optional(),
   markup: z.number().nullable().optional(),
-  escopo: z.string().nullable().optional(),
+  solucoes: z.array(z.string()).optional(),
   prazo: z.string().nullable().optional(),
   contatos: z.array(contatoSchema).optional(),
   signatarioEmail: z.string().email().nullable().optional().or(z.literal("")),
@@ -93,7 +93,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (body.nomeDemanda !== undefined) updatePayload.nome_demanda = body.nomeDemanda;
     if (body.valor !== undefined) updatePayload.valor = body.valor;
     if (body.markup !== undefined) updatePayload.markup = body.markup;
-    if (body.escopo !== undefined) updatePayload.escopo = body.escopo;
+    if (body.solucoes !== undefined) updatePayload.solucoes = body.solucoes;
     if (body.prazo !== undefined) updatePayload.prazo = body.prazo || null;
     if (body.contatos !== undefined) updatePayload.contatos = body.contatos;
     if (body.signatarioEmail !== undefined) updatePayload.signatario_email = body.signatarioEmail || null;
