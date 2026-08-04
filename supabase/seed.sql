@@ -39,35 +39,39 @@ begin
   -- --------------------------------------------------------------------
   -- Usuários demo (auth.users) — um por perfil, mais um comercial extra
   -- --------------------------------------------------------------------
+  -- Observação: além de confirmation_token/recovery_token, é preciso
+  -- zerar explicitamente email_change (sem default no schema do GoTrue)
+  -- — deixá-lo NULL causa erro 500 ("converting NULL to string") no login
+  -- por senha em algumas versões do Auth.
   insert into auth.users (
     instance_id, id, aud, role, email, encrypted_password,
     email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-    created_at, updated_at, confirmation_token, recovery_token
+    created_at, updated_at, confirmation_token, recovery_token, email_change
   ) values
     ('00000000-0000-0000-0000-000000000000', v_admin_id, 'authenticated', 'authenticated',
      'admin@aquila.com.br', v_senha_hash, now(),
      '{"provider":"email","providers":["email"]}', '{"name":"Administrador Aquila","role":"admin"}',
-     now(), now(), '', ''),
+     now(), now(), '', '', ''),
     ('00000000-0000-0000-0000-000000000000', v_comercial_id, 'authenticated', 'authenticated',
      'comercial@aquila.com.br', v_senha_hash, now(),
      '{"provider":"email","providers":["email"]}', '{"name":"Carla Comercial","role":"comercial"}',
-     now(), now(), '', ''),
+     now(), now(), '', '', ''),
     ('00000000-0000-0000-0000-000000000000', v_juridico_id, 'authenticated', 'authenticated',
      'juridico@aquila.com.br', v_senha_hash, now(),
      '{"provider":"email","providers":["email"]}', '{"name":"João Jurídico","role":"juridico"}',
-     now(), now(), '', ''),
+     now(), now(), '', '', ''),
     ('00000000-0000-0000-0000-000000000000', v_projetos_id, 'authenticated', 'authenticated',
      'projetos@aquila.com.br', v_senha_hash, now(),
      '{"provider":"email","providers":["email"]}', '{"name":"Paula Projetos","role":"projetos"}',
-     now(), now(), '', ''),
+     now(), now(), '', '', ''),
     ('00000000-0000-0000-0000-000000000000', v_financeiro_id, 'authenticated', 'authenticated',
      'financeiro@aquila.com.br', v_senha_hash, now(),
      '{"provider":"email","providers":["email"]}', '{"name":"Fábio Financeiro","role":"financeiro"}',
-     now(), now(), '', ''),
+     now(), now(), '', '', ''),
     ('00000000-0000-0000-0000-000000000000', v_comercial2_id, 'authenticated', 'authenticated',
      'comercial2@aquila.com.br', v_senha_hash, now(),
      '{"provider":"email","providers":["email"]}', '{"name":"Bruno Comercial","role":"comercial"}',
-     now(), now(), '', '')
+     now(), now(), '', '', '')
   on conflict (id) do nothing;
 
   -- identities (necessário para login por e-mail/senha em algumas versões do GoTrue)
@@ -154,7 +158,9 @@ begin
   returning id into v_demanda3;
 
   insert into demand_documents (demand_id, tipo, nome_arquivo, caminho_arquivo, uploaded_by) values
-    (v_demanda3, 'proposta', 'proposta-vale-verde.pdf', v_demanda3 || '/proposta-vale-verde.pdf', v_comercial2_id),
+    (v_demanda3, 'proposta', 'proposta-vale-verde.pdf', v_demanda3 || '/proposta-vale-verde.pdf', v_comercial2_id);
+
+  insert into demand_documents (demand_id, tipo, nome_arquivo, caminho_arquivo, uploaded_by) values
     (v_demanda3, 'minuta', 'minuta-contrato-vale-verde.pdf', v_demanda3 || '/minuta-contrato-vale-verde.pdf', v_juridico_id)
   returning id into v_doc;
 
@@ -182,9 +188,10 @@ begin
   returning id into v_demanda4;
 
   insert into demand_documents (demand_id, tipo, nome_arquivo, caminho_arquivo, uploaded_by) values
-    (v_demanda4, 'proposta', 'proposta-techfarma.pdf', v_demanda4 || '/proposta-techfarma.pdf', v_comercial_id),
-    (v_demanda4, 'minuta', 'minuta-techfarma.pdf', v_demanda4 || '/minuta-techfarma.pdf', v_juridico_id)
-  returning id into v_doc;
+    (v_demanda4, 'proposta', 'proposta-techfarma.pdf', v_demanda4 || '/proposta-techfarma.pdf', v_comercial_id);
+
+  insert into demand_documents (demand_id, tipo, nome_arquivo, caminho_arquivo, uploaded_by) values
+    (v_demanda4, 'minuta', 'minuta-techfarma.pdf', v_demanda4 || '/minuta-techfarma.pdf', v_juridico_id);
 
   insert into demand_documents (demand_id, tipo, nome_arquivo, caminho_arquivo, uploaded_by) values
     (v_demanda4, 'contrato_assinado', 'contrato-assinado-techfarma.pdf', v_demanda4 || '/contrato-assinado-techfarma.pdf', v_juridico_id)
