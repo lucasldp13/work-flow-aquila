@@ -19,7 +19,10 @@ import type { DemandDetailPayload, SessionInfo } from "../types";
 export function GeralTab({ data, session, onChanged }: { data: DemandDetailPayload; session: SessionInfo; onChanged: () => Promise<void> }) {
   const router = useRouter();
   const { demand } = data;
-  const podeEditar = canEditDemandAtStatus(session.role, demand.status) && session.role !== "admin";
+  // Administrador tem acesso total: também pode editar as informações
+  // comerciais, em qualquer etapa (canEditDemandAtStatus já retorna true
+  // para admin independentemente do status).
+  const podeEditar = canEditDemandAtStatus(session.role, demand.status);
   const [editing, setEditing] = useState(false);
 
   return (

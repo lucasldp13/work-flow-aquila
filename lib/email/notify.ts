@@ -187,7 +187,10 @@ export async function notifyJuridico(params: NotifyJuridicoParams): Promise<Noti
     createdBy: params.createdBy,
     link: params.link,
     semDestinatariosErro: "Nenhum destinatário do Jurídico configurado no painel administrativo.",
-    mensagemFalhaInterna: (erro) => `Falha ao enviar e-mail de notificação ao Jurídico sobre "${params.demanda}": ${erro}`,
+    mensagemFalhaInterna: (erro) =>
+      `Falha ao notificar o Jurídico sobre "${params.demanda}" (${params.cliente}). ` +
+      `De: sistema (Workflow Aquila) · Para: ${destinatarios.length > 0 ? destinatarios.join(", ") : "nenhum destinatário configurado"}. ` +
+      `Motivo: ${erro}`,
   });
 }
 
@@ -239,7 +242,11 @@ export async function notifyMinutaConfirmacaoInterna(params: NotifyMinutaConfirm
     createdBy: params.createdBy,
     link: params.link,
     semDestinatariosErro: "Nenhum destinatário da confirmação interna de envio da minuta configurado no painel administrativo.",
-    mensagemFalhaInterna: (erro) => `Falha ao enviar a confirmação interna de envio da minuta sobre "${params.demanda}": ${erro}`,
+    mensagemFalhaInterna: (erro) =>
+      `Falha ao enviar a confirmação interna de envio da minuta sobre "${params.demanda}" (${params.cliente}). ` +
+      `De: sistema (Workflow Aquila) · Para: ${destinatarios.length > 0 ? destinatarios.join(", ") : "nenhum destinatário configurado"} · ` +
+      `Responsável pelo envio ao cliente: ${params.usuarioJuridico} (destinatário externo: ${params.destinatarioCliente}). ` +
+      `Motivo: ${erro}`,
   });
 }
 

@@ -272,8 +272,12 @@ export function SettingsAdmin() {
               <div key={log.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                 <div>
                   <p className="text-sm font-medium text-slate-900">{log.assunto}</p>
+                  {log.demand?.nome_demanda && <p className="text-xs text-slate-500">Demanda: {log.demand.nome_demanda}</p>}
                   <p className="text-xs text-slate-500">
-                    {log.demand?.nome_demanda} · {log.destinatarios.join(", ")} · {formatDateTime(log.enviado_em ?? log.created_at)}
+                    <span className="font-medium text-slate-600">De:</span> sistema (Workflow Aquila) ·{" "}
+                    <span className="font-medium text-slate-600">Para:</span>{" "}
+                    {log.destinatarios.length > 0 ? log.destinatarios.join(", ") : "nenhum destinatário"} ·{" "}
+                    {formatDateTime(log.enviado_em ?? log.created_at)}
                   </p>
                   {log.ultimo_erro && <p className="text-xs text-rose-500">{log.ultimo_erro}</p>}
                 </div>
