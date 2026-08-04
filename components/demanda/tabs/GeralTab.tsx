@@ -11,6 +11,7 @@ import { canEditDemandAtStatus } from "@/lib/workflow/permissions";
 import { apiRequest } from "@/lib/api/fetcher";
 import { ActionPanel } from "../ActionPanel";
 import { DeleteDemandButton } from "../DeleteDemandButton";
+import { ValorBrutoPreview } from "../ValorBrutoPreview";
 import type { DemandDetailPayload, SessionInfo } from "../types";
 
 export function GeralTab({ data, session, onChanged }: { data: DemandDetailPayload; session: SessionInfo; onChanged: () => Promise<void> }) {
@@ -104,8 +105,9 @@ function ReadOnlyInfo({ data }: { data: DemandDetailPayload }) {
   const { demand } = data;
   return (
     <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-      <Info label="Valor" value={formatCurrency(demand.valor)} />
+      <Info label="Valor líquido" value={formatCurrency(demand.valor)} />
       <Info label="Markup" value={demand.markup ? `${demand.markup}%` : "—"} />
+      <Info label="Valor bruto (com markup)" value={formatCurrency(demand.valor_bruto)} />
       <Info label="Prazo de execução" value={formatDate(demand.prazo)} />
       <Info label="E-mail do responsável pela assinatura" value={demand.signatario_email ?? "—"} />
       <div className="sm:col-span-2">
@@ -160,10 +162,11 @@ function EditForm({ data, onCancel, onSaved }: { data: DemandDetailPayload; onCa
     <div className="space-y-4">
       {error && <Alert variant="error">{error}</Alert>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Input label="Valor (R$)" type="number" min="0" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} />
+        <Input label="Valor líquido (R$)" type="number" min="0" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} />
         <Input label="Markup (%)" type="number" step="0.01" value={markup} onChange={(e) => setMarkup(e.target.value)} />
         <Input label="Prazo de execução" type="date" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
       </div>
+      <ValorBrutoPreview valor={valor} markup={markup} />
       <Input label="E-mail do responsável pela assinatura" type="email" value={signatarioEmail} onChange={(e) => setSignatarioEmail(e.target.value)} />
       <Textarea label="Escopo" value={escopo} onChange={(e) => setEscopo(e.target.value)} />
       <div className="flex gap-2">

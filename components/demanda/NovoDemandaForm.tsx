@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { ClientPicker, ClientOption } from "./ClientPicker";
 import { ConsultorPicker } from "./ConsultorPicker";
+import { ValorBrutoPreview } from "./ValorBrutoPreview";
 import { ContatosField, ContatoFormValue } from "./ContatosField";
 import { isValidCnpj } from "@/lib/workflow/validations";
 
@@ -128,10 +129,19 @@ export function NovoDemandaForm() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Input label="Valor (R$)" type="number" min="0" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} />
+            <Input
+              label="Valor líquido (R$)"
+              type="number"
+              min="0"
+              step="0.01"
+              value={valor}
+              onChange={(e) => setValor(e.target.value)}
+              hint="O que a Aquila recebe, sem o markup."
+            />
             <Input label="Markup (%)" type="number" step="0.01" value={markup} onChange={(e) => setMarkup(e.target.value)} />
             <Input label="Prazo de execução" type="date" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
           </div>
+          <ValorBrutoPreview valor={valor} markup={markup} />
           <Textarea label="Escopo" value={escopo} onChange={(e) => setEscopo(e.target.value)} placeholder="Descreva o escopo do projeto…" />
         </CardContent>
       </Card>

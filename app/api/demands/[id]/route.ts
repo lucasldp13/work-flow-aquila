@@ -5,6 +5,7 @@ import { notifyJuridico } from "@/lib/email/notify";
 import { canEditDemandAtStatus } from "@/lib/workflow/permissions";
 import { canViewPayments } from "@/lib/workflow/permissions";
 import { deleteDemandFiles } from "@/lib/storage/cleanup";
+import { calcularValorBruto } from "@/lib/workflow/pricing";
 
 const contatoSchema = z.object({
   nome: z.string().min(1),
@@ -76,7 +77,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const { supabase, profile } = await requireProfile();
     requireRole(profile, ["comercial"]);
 
-    const { data: current, error: currentError } = await supabase.from("demands").select("status, nome_demanda, clients(name)").eq("id", params.id).single();
+    const { data: current, error: currentError } = await supabase
+      .from("demands")
+      .select("status, nome_demanda, valor, markup, clients(name)")
+      .eq("id", params.id)
+      .single();
     if (currentError) throw currentError;
 
     if (!canEditDemandAtStatus(profile.role, current.status)) {
@@ -92,6 +97,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (body.prazo !== undefined) updatePayload.prazo = body.prazo || null;
     if (body.contatos !== undefined) updatePayload.contatos = body.contatos;
     if (body.signatarioEmail !== undefined) updatePayload.signatario_email = body.signatarioEmail || null;
+
+    if (body.valor !== undefined || body.markup !== undefined) {
+      const valorEfetivo = body.valor !== undefined ? body.valor : current.valor;
+      const markupEfetivo = body.markup !== undefined ? body.markup : current.markup;
+      const { valorBruto } = calcularValorBruto(valorEfetivo, markupEfetivo);
+      updatePayload.valor_bruto = valorBruto;
+    }
 
     const { data: demand, error } = await supabase.from("demands").update(updatePayload).eq("id", params.id).select("*, clients(name)").single();
     if (error) throw error;

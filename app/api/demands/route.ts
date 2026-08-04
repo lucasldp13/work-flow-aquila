@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireProfile, requireRole, handleApiError, appUrl } from "@/lib/api/helpers";
 import { notifyJuridico } from "@/lib/email/notify";
 import { isValidCnpj } from "@/lib/workflow/validations";
+import { calcularValorBruto } from "@/lib/workflow/pricing";
 
 const contatoSchema = z.object({
   nome: z.string().min(1),
@@ -72,6 +73,8 @@ export async function POST(request: NextRequest) {
       clientId = client.id;
     }
 
+    const { valorBruto } = calcularValorBruto(body.valor ?? null, body.markup ?? null);
+
     const { data: demand, error } = await supabase
       .from("demands")
       .insert({
@@ -81,6 +84,7 @@ export async function POST(request: NextRequest) {
         consultor_email: body.consultorEmail,
         valor: body.valor ?? null,
         markup: body.markup ?? null,
+        valor_bruto: valorBruto,
         escopo: body.escopo ?? null,
         prazo: body.prazo || null,
         contatos: body.contatos,

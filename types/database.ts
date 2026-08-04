@@ -84,6 +84,7 @@ export interface Database {
           consultor_email: string;
           valor: number | null;
           markup: number | null;
+          valor_bruto: number | null;
           escopo: string | null;
           prazo: string | null;
           contatos: Contato[];
