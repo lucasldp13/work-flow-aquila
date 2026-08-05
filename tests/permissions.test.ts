@@ -34,10 +34,19 @@ describe("permissões por perfil e etapa", () => {
     expect(canViewDocument("juridico", "comprovante")).toBe(false);
   });
 
-  it("a minuta contratual é visível a Comercial, Jurídico e Admin, mas não a Projetos/Financeiro", () => {
-    expect(canViewDocument("comercial", "minuta")).toBe(true);
+  it("a minuta contratual é exclusiva do Jurídico e do Admin — Comercial não vê a elaboração da minuta", () => {
     expect(canViewDocument("juridico", "minuta")).toBe(true);
+    expect(canViewDocument("admin", "minuta")).toBe(true);
+    expect(canViewDocument("comercial", "minuta")).toBe(false);
     expect(canViewDocument("projetos", "minuta")).toBe(false);
     expect(canViewDocument("financeiro", "minuta")).toBe(false);
+  });
+
+  it("o contrato assinado é visível a Jurídico, Projetos e Admin, mas não ao Comercial/Financeiro", () => {
+    expect(canViewDocument("juridico", "contrato_assinado")).toBe(true);
+    expect(canViewDocument("projetos", "contrato_assinado")).toBe(true);
+    expect(canViewDocument("admin", "contrato_assinado")).toBe(true);
+    expect(canViewDocument("comercial", "contrato_assinado")).toBe(false);
+    expect(canViewDocument("financeiro", "contrato_assinado")).toBe(false);
   });
 });

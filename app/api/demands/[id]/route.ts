@@ -41,7 +41,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     const [{ data: documents }, { data: comments }, { data: history }, { data: team }, { data: financeResumo }, { data: signature }, { data: minutaEnvio }] =
       await Promise.all([
         supabase.from("demand_documents").select("*, uploader:profiles!demand_documents_uploaded_by_fkey(name)").eq("demand_id", params.id).order("created_at", { ascending: false }),
-        supabase.from("demand_comments").select("*, author:profiles!demand_comments_user_id_fkey(name)").eq("demand_id", params.id).order("created_at", { ascending: true }),
+        supabase.from("demand_comments").select("*, author:profiles!demand_comments_user_id_fkey(name, role)").eq("demand_id", params.id).order("created_at", { ascending: true }),
         supabase.from("demand_status_history").select("*, author:profiles!demand_status_history_usuario_id_fkey(name)").eq("demand_id", params.id).order("created_at", { ascending: true }),
         supabase.from("demand_team_members").select("*").eq("demand_id", params.id).order("created_at", { ascending: true }),
         supabase.from("demand_financeiro_resumo").select("*").eq("demand_id", params.id).maybeSingle(),
@@ -55,10 +55,18 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
       payments = data ?? [];
     }
 
+    // Comentários marcados como "interno" só aparecem para quem é do mesmo
+    // setor de quem escreveu (ou Admin) — evita que anotações internas de
+    // um setor apareçam misturadas na tela de outro (ex.: nota interna do
+    // Jurídico visível para o Comercial).
+    const comentariosVisiveis = (
+      (comments as unknown as { interno: boolean; author: { role: string } | null }[] | null) ?? []
+    ).filter((c) => !c.interno || profile.role === "admin" || c.author?.role === profile.role);
+
     return NextResponse.json({
       demand,
       documents,
-      comments,
+      comments: comentariosVisiveis,
       history,
       team,
       payments,

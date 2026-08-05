@@ -42,8 +42,8 @@ export function canAccessAdmin(role: UserRole): boolean {
 // visível para todos.
 const DOCUMENT_ACCESS: Record<DocumentType, UserRole[]> = {
   proposta: ["admin", "comercial", "juridico"],
-  minuta: ["admin", "comercial", "juridico"],
-  contrato_assinado: ["admin", "comercial", "juridico", "projetos"],
+  minuta: ["admin", "juridico"],
+  contrato_assinado: ["admin", "juridico", "projetos"],
   equipe: ["admin", "projetos", "financeiro"],
   comprovante: ["admin", "financeiro"],
   outro: ["admin", "comercial", "juridico"],

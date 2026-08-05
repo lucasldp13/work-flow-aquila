@@ -40,6 +40,7 @@ export interface DemandCommentItem {
   tipo: CommentType;
   mensagem: string;
   resolvido: boolean;
+  interno: boolean;
   created_at: string;
   author: { name: string } | null;
 }

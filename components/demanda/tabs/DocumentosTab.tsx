@@ -8,7 +8,7 @@ import { Alert } from "@/components/ui/Alert";
 import { formatDateTime } from "@/lib/utils/format";
 import { canEditDemandAtStatus, canViewDocument } from "@/lib/workflow/permissions";
 import { uploadDemandDocument } from "@/lib/api/uploadDocument";
-import { Download, FileText, Lock, UploadCloud } from "lucide-react";
+import { Download, FileText, UploadCloud } from "lucide-react";
 import type { DemandDetailPayload, SessionInfo } from "../types";
 import type { DocumentType } from "@/types/database";
 
@@ -23,6 +23,11 @@ const TIPO_LABEL: Record<DocumentType, string> = {
 
 export function DocumentosTab({ data, session, onChanged }: { data: DemandDetailPayload; session: SessionInfo; onChanged: () => Promise<void> }) {
   const podeAnexar = canEditDemandAtStatus(session.role, data.demand.status);
+  // Documentos de outros setores (ex.: minuta do Jurídico) nem aparecem na
+  // lista para quem não tem acesso — não basta bloquear o download, a tela
+  // de cada perfil não deve exibir nem os metadados de arquivos que não são
+  // dela.
+  const documentosVisiveis = data.documents.filter((doc) => canViewDocument(session.role, doc.tipo));
   const [tipo, setTipo] = useState<DocumentType>("outro");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -94,34 +99,25 @@ export function DocumentosTab({ data, session, onChanged }: { data: DemandDetail
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-slate-100">
-            {data.documents.map((doc) => {
-              const podeVer = canViewDocument(session.role, doc.tipo);
-              return (
-                <div key={doc.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                      <FileText className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-900">{doc.nome_arquivo}</p>
-                      <p className="text-xs text-slate-500">
-                        {TIPO_LABEL[doc.tipo]} · {doc.uploader?.name ?? "—"} · {formatDateTime(doc.created_at)}
-                      </p>
-                    </div>
+            {documentosVisiveis.map((doc) => (
+              <div key={doc.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <FileText className="h-4 w-4" />
                   </div>
-                  {podeVer ? (
-                    <Button variant="outline" size="sm" onClick={() => handleDownload(doc.id)}>
-                      <Download className="h-3.5 w-3.5" /> Baixar
-                    </Button>
-                  ) : (
-                    <span className="flex items-center gap-1 text-xs text-slate-400">
-                      <Lock className="h-3.5 w-3.5" /> Restrito
-                    </span>
-                  )}
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900">{doc.nome_arquivo}</p>
+                    <p className="text-xs text-slate-500">
+                      {TIPO_LABEL[doc.tipo]} · {doc.uploader?.name ?? "—"} · {formatDateTime(doc.created_at)}
+                    </p>
+                  </div>
                 </div>
-              );
-            })}
-            {data.documents.length === 0 && <p className="px-5 py-10 text-center text-sm text-slate-400">Nenhum documento anexado ainda.</p>}
+                <Button variant="outline" size="sm" onClick={() => handleDownload(doc.id)}>
+                  <Download className="h-3.5 w-3.5" /> Baixar
+                </Button>
+              </div>
+            ))}
+            {documentosVisiveis.length === 0 && <p className="px-5 py-10 text-center text-sm text-slate-400">Nenhum documento anexado ainda.</p>}
           </div>
         </CardContent>
       </Card>

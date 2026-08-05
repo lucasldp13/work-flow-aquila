@@ -57,7 +57,7 @@ export function DemandDetailClient({ initialData, session }: { initialData: Dema
         </div>
         <div className="flex flex-col items-end gap-2">
           <StatusBadge status={data.demand.status} />
-          <PrazoJuridicoBadge data={data} />
+          {(session.role === "juridico" || session.role === "admin") && <PrazoJuridicoBadge data={data} />}
         </div>
       </div>
 

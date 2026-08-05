@@ -137,6 +137,7 @@ export interface Database {
           tipo: CommentType;
           mensagem: string;
           resolvido: boolean;
+          interno: boolean;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["demand_comments"]["Row"]> & { demand_id: string; mensagem: string };

@@ -28,6 +28,7 @@ const TIPO_COLOR: Record<CommentType, string> = {
 export function ComentariosTab({ data, onChanged }: { data: DemandDetailPayload; session: SessionInfo; onChanged: () => Promise<void> }) {
   const [tipo, setTipo] = useState<Exclude<CommentType, "devolucao">>("duvida");
   const [mensagem, setMensagem] = useState("");
+  const [interno, setInterno] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,13 +39,14 @@ export function ComentariosTab({ data, onChanged }: { data: DemandDetailPayload;
     }
     setLoading(true);
     setError(null);
-    const result = await apiRequest(`/api/demands/${data.demand.id}/comments`, { method: "POST", body: JSON.stringify({ tipo, mensagem }) });
+    const result = await apiRequest(`/api/demands/${data.demand.id}/comments`, { method: "POST", body: JSON.stringify({ tipo, mensagem, interno }) });
     setLoading(false);
     if (!result.ok) {
       setError(result.error ?? "Erro ao registrar.");
       return;
     }
     setMensagem("");
+    setInterno(false);
     await onChanged();
   }
 
@@ -62,6 +64,10 @@ export function ComentariosTab({ data, onChanged }: { data: DemandDetailPayload;
             <option value="comentario">Comentário geral</option>
           </Select>
           <Textarea label="Mensagem" value={mensagem} onChange={(e) => setMensagem(e.target.value)} placeholder="Descreva a dúvida, resposta ou comentário…" />
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={interno} onChange={(e) => setInterno(e.target.checked)} className="h-4 w-4 rounded border-slate-300" />
+            Visível apenas para a minha área (não aparece para os outros setores)
+          </label>
           <Button onClick={handleSubmit} loading={loading}>
             Registrar
           </Button>
@@ -77,7 +83,10 @@ export function ComentariosTab({ data, onChanged }: { data: DemandDetailPayload;
           {data.comments.map((c) => (
             <div key={c.id} className="rounded-lg border border-slate-200 p-3">
               <div className="mb-1.5 flex items-center justify-between">
-                <Badge className={TIPO_COLOR[c.tipo]}>{TIPO_LABEL[c.tipo]}</Badge>
+                <div className="flex items-center gap-1.5">
+                  <Badge className={TIPO_COLOR[c.tipo]}>{TIPO_LABEL[c.tipo]}</Badge>
+                  {c.interno && <Badge className="border-slate-300 bg-slate-100 text-slate-600">Interno</Badge>}
+                </div>
                 <span className="text-xs text-slate-400">
                   {c.author?.name ?? "—"} · {formatDateTime(c.created_at)}
                 </span>
