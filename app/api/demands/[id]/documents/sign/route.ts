@@ -7,7 +7,11 @@ import { canEditDemandAtStatus } from "@/lib/workflow/permissions";
 import type { DocumentType } from "@/types/database";
 
 const DOCUMENT_TYPES: DocumentType[] = ["proposta", "minuta", "contrato_assinado", "equipe", "comprovante", "outro"];
-const MAX_SIZE_BYTES = 25 * 1024 * 1024;
+// 50MB é o teto máximo permitido pelo plano atual do Supabase (Free) para
+// upload de arquivos — tanto no limite global do projeto quanto no bucket
+// "documentos" (ver migration 0014). Não é possível configurar um valor
+// maior sem upgrade de plano.
+const MAX_SIZE_BYTES = 50 * 1024 * 1024;
 
 const schema = z.object({
   tipo: z.string(),
@@ -27,7 +31,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const tipo = (DOCUMENT_TYPES.includes(body.tipo as DocumentType) ? body.tipo : "outro") as DocumentType;
 
     if (body.tamanhoBytes > MAX_SIZE_BYTES) {
-      throw new ApiError(400, "Arquivo excede o limite de 25MB.");
+      throw new ApiError(400, "Arquivo excede o limite de 50MB.");
     }
 
     const { data: demand, error } = await supabase.from("demands").select("status").eq("id", params.id).single();
