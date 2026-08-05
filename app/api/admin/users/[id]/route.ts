@@ -7,6 +7,7 @@ const schema = z.object({
   name: z.string().min(1).optional(),
   role: z.enum(["admin", "comercial", "juridico", "projetos", "financeiro"]).optional(),
   active: z.boolean().optional(),
+  password: z.string().min(8).optional(),
 });
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -16,6 +17,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     const body = schema.parse(await request.json());
     const admin = createAdminSupabaseClient();
+
+    // Redefinição de senha por um admin, sem depender de e-mail: útil
+    // enquanto o SMTP não está configurado ou quando o usuário não tem
+    // acesso ao próprio e-mail para receber o link de recuperação.
+    if (body.password !== undefined) {
+      const { error: authError } = await admin.auth.admin.updateUserById(params.id, { password: body.password });
+      if (authError) throw authError;
+    }
 
     const { data: user, error } = await admin
       .from("profiles")

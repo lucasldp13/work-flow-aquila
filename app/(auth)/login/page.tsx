@@ -15,6 +15,7 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showRecuperar, setShowRecuperar] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -72,12 +73,72 @@ function LoginForm() {
               Entrar
             </Button>
           </form>
+          <button
+            type="button"
+            onClick={() => setShowRecuperar((v) => !v)}
+            className="mt-4 w-full text-center text-sm font-medium text-brand-700 hover:underline"
+          >
+            Esqueci minha senha
+          </button>
+          {showRecuperar && <RecuperarSenhaForm defaultEmail={email} />}
         </div>
         <p className="mt-6 text-center text-xs text-slate-400">
           Acesso restrito a colaboradores autorizados. Em caso de dúvidas, procure o administrador do sistema.
         </p>
       </div>
     </div>
+  );
+}
+
+function RecuperarSenhaForm({ defaultEmail }: { defaultEmail: string }) {
+  const [email, setEmail] = useState(defaultEmail);
+  const [loading, setLoading] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const supabase = createClient();
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/redefinir-senha`,
+    });
+
+    setLoading(false);
+    if (resetError) {
+      setError("Não foi possível enviar o e-mail de recuperação. Tente novamente ou procure um administrador.");
+      return;
+    }
+    setEnviado(true);
+  }
+
+  if (enviado) {
+    return (
+      <Alert variant="success" className="mt-4">
+        Se o e-mail informado estiver cadastrado, enviamos um link para redefinir a senha. Verifique sua caixa de entrada (e o spam).
+      </Alert>
+    );
+  }
+
+  return (
+    <form className="mt-4 space-y-3 border-t border-slate-100 pt-4" onSubmit={handleSubmit}>
+      <p className="text-xs text-slate-500">Informe seu e-mail cadastrado para receber um link de redefinição de senha.</p>
+      <Input
+        label="E-mail"
+        type="email"
+        required
+        autoComplete="email"
+        placeholder="seuemail@aquila.com.br"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      {error && <Alert variant="error">{error}</Alert>}
+      <Button type="submit" variant="outline" className="w-full" loading={loading}>
+        Enviar link de recuperação
+      </Button>
+    </form>
   );
 }
 

@@ -116,6 +116,7 @@ function NewUserForm({ onCreated }: { onCreated: () => Promise<void> }) {
 function UserRowItem({ user, onChanged }: { user: UserRow; onChanged: () => Promise<void> }) {
   const [role, setRole] = useState(user.role);
   const [loading, setLoading] = useState(false);
+  const [showResetSenha, setShowResetSenha] = useState(false);
 
   async function updateRole(newRole: UserRole) {
     setRole(newRole);
@@ -133,26 +134,91 @@ function UserRowItem({ user, onChanged }: { user: UserRow; onChanged: () => Prom
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-      <div>
-        <p className="text-sm font-medium text-slate-900">{user.name}</p>
-        <p className="text-xs text-slate-500">
-          {user.email} · desde {formatDate(user.created_at)}
-        </p>
+    <div className="px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-slate-900">{user.name}</p>
+          <p className="text-xs text-slate-500">
+            {user.email} · desde {formatDate(user.created_at)}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {!user.active && <Badge className="border-rose-200 bg-rose-100 text-rose-700">Inativo</Badge>}
+          <Select value={role} disabled={loading} onChange={(e) => updateRole(e.target.value as UserRole)} className="w-auto">
+            {Object.entries(ROLE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </Select>
+          <Button size="sm" variant="outline" onClick={() => setShowResetSenha((v) => !v)} disabled={loading}>
+            Redefinir senha
+          </Button>
+          <Button size="sm" variant={user.active ? "outline" : "secondary"} onClick={toggleActive} disabled={loading}>
+            {user.active ? "Desativar" : "Ativar"}
+          </Button>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
-        {!user.active && <Badge className="border-rose-200 bg-rose-100 text-rose-700">Inativo</Badge>}
-        <Select value={role} disabled={loading} onChange={(e) => updateRole(e.target.value as UserRole)} className="w-auto">
-          {Object.entries(ROLE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </Select>
-        <Button size="sm" variant={user.active ? "outline" : "secondary"} onClick={toggleActive} disabled={loading}>
-          {user.active ? "Desativar" : "Ativar"}
-        </Button>
-      </div>
+      {showResetSenha && (
+        <ResetSenhaForm
+          userId={user.id}
+          onDone={() => {
+            setShowResetSenha(false);
+            onChanged();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ResetSenhaForm({ userId, onDone }: { userId: string; onDone: () => void }) {
+  const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  async function handleSubmit() {
+    if (senha.length < 8) {
+      setError("A senha deve ter ao menos 8 caracteres.");
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    const result = await apiRequest(`/api/admin/users/${userId}`, { method: "PATCH", body: JSON.stringify({ password: senha }) });
+    setLoading(false);
+    if (!result.ok) {
+      setError(result.error ?? "Erro ao redefinir senha.");
+      return;
+    }
+    setSuccess(true);
+    setTimeout(onDone, 1200);
+  }
+
+  if (success) {
+    return (
+      <Alert variant="success" className="mt-3">
+        Senha redefinida com sucesso.
+      </Alert>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <Input
+        label="Nova senha provisória"
+        type="password"
+        value={senha}
+        onChange={(e) => setSenha(e.target.value)}
+        placeholder="Mínimo 8 caracteres"
+      />
+      <Button size="sm" onClick={handleSubmit} loading={loading}>
+        Confirmar
+      </Button>
+      <Button size="sm" variant="ghost" onClick={onDone} disabled={loading}>
+        Cancelar
+      </Button>
+      {error && <p className="w-full text-xs text-rose-600">{error}</p>}
     </div>
   );
 }

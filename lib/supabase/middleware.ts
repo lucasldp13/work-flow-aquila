@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 import type { UserRole } from "@/types/database";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/callback"];
+const PUBLIC_PATHS = ["/login", "/api/auth/callback", "/redefinir-senha"];
 
 // Rotas cujo primeiro segmento exige um perfil específico (além de admin,
 // que sempre tem acesso total). Mantém a proteção de rota também no
@@ -38,8 +38,15 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname.startsWith("/_next") || pathname === "/favicon.ico";
+  const isApiRoute = pathname.startsWith("/api");
 
-  if (!user && !isPublic) {
+  // Rotas de API nunca são redirecionadas para /login: um redirect (307)
+  // faz o fetch do navegador reenviar a requisição para a página de login
+  // (HTML), que a UI tentaria interpretar como JSON — resultando em telas
+  // "vazias" ou erros genéricos quando a sessão expira, sem avisar o
+  // usuário. Em vez disso, deixamos a própria rota (via requireProfile)
+  // responder 401 em JSON, que o cliente sabe tratar.
+  if (!user && !isPublic && !isApiRoute) {
     const redirectUrl = new URL("/login", request.url);
     redirectUrl.searchParams.set("redirectTo", pathname);
     return NextResponse.redirect(redirectUrl);
